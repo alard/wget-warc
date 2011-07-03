@@ -1,1 +1,6 @@
 .bzr
+.svn
+trunk/src/build_info.c
+trunk/src/config.h
+trunk/src/version.c
+trunk/src/css.c

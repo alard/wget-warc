@@ -286,6 +286,8 @@ static struct cmdline_option option_data[] =
     { "version", 'V', OPT_FUNCALL, (void *) print_version, no_argument },
     { "wait", 'w', OPT_VALUE, "wait", -1 },
     { "waitretry", 0, OPT_VALUE, "waitretry", -1 },
+    { "warc-file", 0, OPT_VALUE, "warcfile", -1 },
+    { "warc-tempfile", 0, OPT_VALUE, "warctempfile", -1 },
 #ifdef USE_WATT32
     { "wdebug", 0, OPT_BOOLEAN, "wdebug", -1 },
 #endif
@@ -530,6 +532,10 @@ Download:\n"),
        --remote-encoding=ENC     use ENC as the default remote encoding.\n"),
     N_("\
        --unlink                  remove file before clobber.\n"),
+    N_("\
+       --warc-file=FILENAME      save request/response data to a .warc.gz file.\n"),
+    N_("\
+       --warc-tempfile=FILENAME  temporary file used by the WARC writer.\n"),
     "\n",
 
     N_("\

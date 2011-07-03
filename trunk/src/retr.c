@@ -143,7 +143,7 @@ limit_bandwidth (wgint bytes, struct ptimer *timer)
 
 static int
 write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
-            wgint *written)
+            wgint *written, FILE *out2)
 {
   if (!out)
     return 1;
@@ -163,6 +163,12 @@ write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
 
   fwrite (buf, 1, bufsize, out);
   *written += bufsize;
+
+  if (out2 != 0)
+  {
+    /* TODO check for WARC write errors? */
+    fwrite (buf, 1, bufsize, out2);
+  }
 
   /* Immediately flush the downloaded data.  This should not hinder
      performance: fast downloads will arrive in large 16K chunks
@@ -204,7 +210,8 @@ write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
 
 int
 fd_read_body (int fd, FILE *out, wgint toread, wgint startpos,
-              wgint *qtyread, wgint *qtywritten, double *elapsed, int flags)
+              wgint *qtyread, wgint *qtywritten, double *elapsed, int flags,
+              FILE *out2)
 {
   int ret = 0;
 #define max(a,b) ((a) > (b) ? (a) : (b))
@@ -342,7 +349,7 @@ fd_read_body (int fd, FILE *out, wgint toread, wgint startpos,
       if (ret > 0)
         {
           sum_read += ret;
-          if (!write_data (out, dlbuf, ret, &skip, &sum_written))
+          if (!write_data (out, dlbuf, ret, &skip, &sum_written, out2))
             {
               ret = -2;
               goto out;

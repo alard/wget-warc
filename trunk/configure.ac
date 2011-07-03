@@ -493,7 +493,22 @@ if test "X$iri" != "Xno"; then
   fi
 fi
 
+# Warc
+AC_CHECK_HEADER(uuid/uuid.h, UUID_FOUND="yes", UUID_FOUND="no")
+if test x$UUID_FOUND = xno; then
+  AC_MSG_ERROR([libuuid is required])
+fi
 
+AC_CHECK_LIB(uuid, uuid_generate, UUID_FOUND="yes", UUID_FOUND="no")
+if test x$UUID_FOUND = xno; then
+  AC_MSG_ERROR([libuuid is required])
+fi
+LIBUUID="-luuid"
+AC_SUBST(LIBUUID)
+LDFLAGS="${LDFLAGS} -L$libuuid/lib"
+CPPFLAGS="${CPPFLAGS} -I$libuuid/include"
+
+ 
 dnl Needed by src/Makefile.am
 AM_CONDITIONAL([IRI_IS_ENABLED], [test "X$iri" != "Xno"])
 
@@ -503,6 +518,6 @@ dnl Create output
 dnl
 AC_CONFIG_FILES([Makefile src/Makefile doc/Makefile util/Makefile
                  po/Makefile.in tests/Makefile tests/WgetTest.pm
-                 lib/Makefile])
+                 lib/Makefile libwarc/Makefile])
 AC_CONFIG_HEADERS([src/config.h])
 AC_OUTPUT

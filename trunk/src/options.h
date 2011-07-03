@@ -87,6 +87,8 @@ struct options
 				   FTP. */
   char *output_document;	/* The output file to which the
 				   documents will be printed.  */
+  char *warc_filename;		/* WARC output filename */
+  char *warc_tempfilename;		/* WARC temp filename */
 
   char *user;			/* Generic username */
   char *passwd;			/* Generic password */

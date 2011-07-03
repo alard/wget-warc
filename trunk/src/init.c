@@ -262,6 +262,8 @@ static const struct {
   { "verbose",          NULL,                   cmd_spec_verbose },
   { "wait",             &opt.wait,              cmd_time },
   { "waitretry",        &opt.waitretry,         cmd_time },
+  { "warcfile",         &opt.warc_filename,     cmd_file },
+  { "warctempfile",     &opt.warc_tempfilename, cmd_file },
 #ifdef USE_WATT32
   { "wdebug",           &opt.wdebug,            cmd_boolean },
 #endif

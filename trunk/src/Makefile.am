@@ -37,28 +37,31 @@ endif
 
 # The following line is losing on some versions of make!
 DEFS     = @DEFS@ -DSYSTEM_WGETRC=\"$(sysconfdir)/wgetrc\" -DLOCALEDIR=\"$(localedir)\"
-LIBS     = @LIBICONV@ @LIBINTL@ @LIBS@ $(LIB_CLOCK_GETTIME)
+LIBS     = @LIBICONV@ @LIBINTL@ @LIBUUID@ @LIBS@ $(LIB_CLOCK_GETTIME)
 
 bin_PROGRAMS = wget
 wget_SOURCES = cmpt.c connect.c convert.c cookies.c ftp.c    		  \
 	       css.l css-url.c \
 	       ftp-basic.c ftp-ls.c hash.c host.c html-parse.c html-url.c \
 	       http.c init.c log.c main.c netrc.c progress.c ptimer.c     \
-	       recur.c res.c retr.c spider.c url.c	          	  \
+	       recur.c res.c retr.c spider.c url.c wget_warc.c	          	  \
 	       utils.c exits.c build_info.c $(IRI_OBJ)			  \
 	       css-url.h css-tokens.h connect.h convert.h cookies.h       \
 	       ftp.h hash.h host.h html-parse.h html-url.h      \
 	       http.h http-ntlm.h init.h log.h mswindows.h netrc.h        \
 	       options.h progress.h ptimer.h recur.h res.h retr.h         \
-	       spider.h ssl.h sysdep.h url.h utils.h wget.h iri.h 	  \
+	       spider.h ssl.h sysdep.h url.h wget_warc.h utils.h wget.h iri.h 	  \
 	       exits.h gettext.h
 nodist_wget_SOURCES = version.c
 EXTRA_wget_SOURCES = iri.c
-LDADD = $(LIBOBJS) ../lib/libgnu.a
-AM_CPPFLAGS = -I$(top_builddir)/lib -I$(top_srcdir)/lib
+LDADD = $(LIBOBJS) ../lib/libgnu.a ../libwarc/warc-tools/libwarc.a
+AM_CPPFLAGS = -I$(top_builddir)/lib -I$(top_srcdir)/lib -I../libwarc/warc-tools/lib/public -I../libwarc/warc-tools/lib/private -I../libwarc/warc-tools/lib/private/os
 
 ../lib/libgnu.a:
 	cd ../lib && $(MAKE) $(AM_MAKEFLAGS)
+
+../libwarc/warc-tools/libwarc.a:
+	cd ../libwarc && $(MAKE) $(AM_MAKEFLAGS)
 
 build_info.c: $(srcdir)/Makefile.am $(srcdir)/build_info.c.in
 	if test -n "$(VPATH)"; then cp "$(srcdir)/build_info.c.in" .; fi
