@@ -8,6 +8,9 @@
 #include "wget.h"
 #include "wget_warc.h"
 
+static void *warc_current_wfile;
+static char *warc_current_winfo_uuid_str;
+
 void warc_timestamp (char *timestamp)
 {
   time_t rawtime;
@@ -41,12 +44,35 @@ bool warc_filename_ends_with_warc (char *filename)
 
 void warc_store_record (void * record)
 {
+  if (warc_current_wfile != 0)
+  {
+    WFile_storeRecord (warc_current_wfile, record);
+  }
+  else
+  {
+    fprintf(stderr, "Called warc_store_record without open WFile.\n");
+  }
+}
+
+void warc_init ()
+{
   if (opt.warc_filename != 0)
   {
     bool disableCompression = warc_filename_ends_with_warc(opt.warc_filename);
-    void * w = bless (WFile, opt.warc_filename, (1024 * 1024 * 1024), WARC_FILE_WRITER, (disableCompression ? WARC_FILE_UNCOMPRESSED : WARC_FILE_COMPRESSED_GZIP_BEST_COMPRESSION), ".");
-    WFile_storeRecord (w, record);
-    destroy (w);
+    warc_current_wfile = bless (WFile, opt.warc_filename, (1024 * 1024 * 1024), WARC_FILE_WRITER, (disableCompression ? WARC_FILE_UNCOMPRESSED : WARC_FILE_COMPRESSED_GZIP_BEST_COMPRESSION), ".");
+
+    /* Write warc-info record as the first record of the file. */
+    warc_current_winfo_uuid_str = (char *) malloc (48);
+    warc_uuid_str (warc_current_winfo_uuid_str);
+  }
+}
+
+void warc_close ()
+{
+  if (warc_current_wfile != 0)
+  {
+    free (warc_current_winfo_uuid_str);
+    destroy (warc_current_wfile);
   }
 }
 

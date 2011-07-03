@@ -55,6 +55,7 @@ as that of the covered work.  */
 #include "spider.h"
 #include "http.h"               /* for save_cookies */
 #include "ptimer.h"
+#include "wget_warc.h"
 
 #include <getopt.h>
 #include <getpass.h>
@@ -1242,6 +1243,10 @@ for details.\n\n"));
   /* Initialize logging.  */
   log_init (opt.lfilename, append_to_log);
 
+  /* Open WARC file. */
+  if (opt.warc_filename != 0)
+    warc_init ();
+
   DEBUGP (("DEBUG output created by Wget %s on %s.\n\n",
            version_string, OS_TYPE));
 
@@ -1441,7 +1446,12 @@ outputting to a regular file.\n"));
   if (opt.convert_links && !opt.delete_after)
     convert_all_links ();
 
+  /* Close WARC file. */
+  if (opt.warc_filename != 0)
+    warc_close ();
+
   log_close ();
+
   for (i = 0; i < nurl; i++)
     xfree (url[i]);
   cleanup ();
