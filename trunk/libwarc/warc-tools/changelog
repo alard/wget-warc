@@ -1,0 +1,94 @@
+
+/* ------------------------------------------------------------------- */
+/* Copyright (c) 2007-2008 Hanzo Archives Limited.                     */
+/*                                                                     */
+/* Licensed under the Apache License, Version 2.0 (the "License");     */
+/* you may not use this file except in compliance with the License.    */
+/* You may obtain a copy of the License at                             */
+/*                                                                     */
+/*     http://www.apache.org/licenses/LICENSE-2.0                      */
+/*                                                                     */
+/* Unless required by applicable law or agreed to in writing, software */
+/* distributed under the License is distributed on an "AS IS" BASIS,   */
+/* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or     */
+/* implied.                                                            */
+/* See the License for the specific language governing permissions and */
+/* limitations under the License.                                      */
+/*                                                                     */
+/* You may find more information about Hanzo Archives at               */
+/*                                                                     */
+/*     http://www.hanzoarchives.com/                                   */
+/*                                                                     */
+/* You may find more information about the WARC Tools project at       */
+/*                                                                     */
+/*     http://code.google.com/p/warc-tools/                            */
+/* ------------------------------------------------------------------- */
+
+2009-06-23 by mark williamson
+
+   * Fixed bug where temporary filename was constructed without a '/' after the 
+      /tmp part meaning it could only be run as root because it tried to make temp files
+      in / on the filesystem. 
+
+
+2008-11-17 to 2009-06-16 by "voidptrptr":
+
+	* Fix bug on Linux machine only wich appears after truncating a temporary record file
+	  when using compressed record without extra field (ex. Heritrix WARC files).
+	  This bug was reported by Noah from Internet Archive. Thanks dude !
+
+2008-11-14 to 2008-11-17 by "voidptrptr":
+
+	* Java wrapper for warc tools (see contrib/java/install)
+	* JHOVE integration for validating WARC files (see contrib/jhove/install)
+
+
+2008-11-07 to 2008-11-14 by "voidptrptr":
+
+        * Fix mahjor bug on SWIG when moving to 64 bits WARC file size support
+	* WARC browser bsed proxy (see contrib/browser/readme)
+
+
+2008-10-22 to 2008-11-07 by "voidptrptr":
+
+        * Fix doc typo
+	* Unlock WARC file size limit to use warc_u64_t (handle Exa bytes WARC file). 
+
+2008-09-14 to 2008-10-22 by "voidptrptr":
+
+	* Fix minor bugs
+        * Add Ruby SWIG wrapper (plugin/ruby and app/ruby)
+
+2008-09-12 to 2008-09-14 by "voidptrptr":
+
+	* Add pages man for C commands ans update the security model
+
+2008-09-10 to 2008-09-12 by "voidptrptr":
+
+	* Full functional release of HTTrack WARC plugin, ready to use (contrib/httrack)
+
+2008-09-08 to 2008-09-10 by "voidptrptr":
+
+	* WARC storage backend for HTTrack (contrib/httrack)
+
+2008-05-29 to 2008-09-08 by "voidptrptr":
+
+	* Complete rewrite of the Python wrapper
+	* Curl integration with pyCurl (contrib/curl)
+	* HTTrack collections migration tool (contrib/httrack)
+
+2008-04-06 to 2008-05-29 by "voidptrptr":
+
+	* Full Python wrapper implementation
+
+2008-02-15 to 2008-04-06 by "voidptrptr":
+
+	* Second stable release. Compliant with WARC/0.17 specification
+
+2008-02-08 to 2008-02-15 by "voidptrptr":
+
+	* Stable release. Compliant with WARC/0.9 specification
+
+2007-11-20 to 2008-02-08 by "voidptrptr":
+
+	* First candidate release.

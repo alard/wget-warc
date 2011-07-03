@@ -1,0 +1,126 @@
+gmake  all-recursive
+gmake[1]: Entering directory `/home/younes/libevent-1.4.2-rc'
+Making all in .
+gmake[2]: Entering directory `/home/younes/libevent-1.4.2-rc'
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o event.lo event.c
+mkdir .libs
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c event.c  -fPIC -DPIC -o .libs/event.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c event.c -o event.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o buffer.lo buffer.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c buffer.c  -fPIC -DPIC -o .libs/buffer.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c buffer.c -o buffer.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o evbuffer.lo evbuffer.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c evbuffer.c  -fPIC -DPIC -o .libs/evbuffer.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c evbuffer.c -o evbuffer.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o log.lo log.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c log.c  -fPIC -DPIC -o .libs/log.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c log.c -o log.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o evutil.lo evutil.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c evutil.c  -fPIC -DPIC -o .libs/evutil.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c evutil.c -o evutil.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o event_tagging.lo event_tagging.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c event_tagging.c  -fPIC -DPIC -o .libs/event_tagging.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c event_tagging.c -o event_tagging.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o http.lo http.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c http.c  -fPIC -DPIC -o .libs/http.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c http.c -o http.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o evdns.lo evdns.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c evdns.c  -fPIC -DPIC -o .libs/evdns.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c evdns.c -o evdns.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o evrpc.lo evrpc.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c evrpc.c  -fPIC -DPIC -o .libs/evrpc.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c evrpc.c -o evrpc.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o strlcpy.lo strlcpy.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c strlcpy.c  -fPIC -DPIC -o .libs/strlcpy.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c strlcpy.c -o strlcpy.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o select.lo select.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c select.c  -fPIC -DPIC -o .libs/select.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c select.c -o select.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o poll.lo poll.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c poll.c  -fPIC -DPIC -o .libs/poll.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c poll.c -o poll.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o kqueue.lo kqueue.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c kqueue.c  -fPIC -DPIC -o .libs/kqueue.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c kqueue.c -o kqueue.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I. -I./compat     -g -O2 -Wall -c -o signal.lo signal.c
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c signal.c  -fPIC -DPIC -o .libs/signal.o
+ gcc -DHAVE_CONFIG_H -I. -I./compat -g -O2 -Wall -c signal.c -o signal.o >/dev/null 2>&1
+/bin/sh ./libtool --tag=CC   --mode=link gcc  -g -O2 -Wall -release 1.4 -version-info 2:0:0  -o libevent.la -rpath /usr/lib event.lo buffer.lo evbuffer.lo log.lo evutil.lo  event_tagging.lo http.lo evdns.lo evrpc.lo strlcpy.lo select.lo poll.lo kqueue.lo signal.lo  
+gcc -shared  -fPIC -DPIC -o .libs/libevent-1.4.so.2.0  .libs/event.o .libs/buffer.o .libs/evbuffer.o .libs/log.o .libs/evutil.o .libs/event_tagging.o .libs/http.o .libs/evdns.o .libs/evrpc.o .libs/strlcpy.o .libs/select.o .libs/poll.o .libs/kqueue.o .libs/signal.o  
+(cd .libs && rm -f libevent.so.2.0 && ln -s libevent-1.4.so.2.0 libevent.so.2.0)
+ar cru .libs/libevent.a  event.o buffer.o evbuffer.o log.o evutil.o event_tagging.o http.o evdns.o evrpc.o strlcpy.o select.o poll.o kqueue.o signal.o
+ranlib .libs/libevent.a
+creating libevent.la
+(cd .libs && rm -f libevent.la && ln -s ../libevent.la libevent.la)
+/bin/sh ./libtool --tag=CC   --mode=link gcc  -g -O2 -Wall -release 1.4 -version-info 2:0:0  -o libevent_core.la -rpath /usr/lib event.lo buffer.lo evbuffer.lo log.lo evutil.lo  select.lo poll.lo kqueue.lo signal.lo  
+gcc -shared  -fPIC -DPIC -o .libs/libevent_core-1.4.so.2.0  .libs/event.o .libs/buffer.o .libs/evbuffer.o .libs/log.o .libs/evutil.o .libs/select.o .libs/poll.o .libs/kqueue.o .libs/signal.o  
+(cd .libs && rm -f libevent_core.so.2.0 && ln -s libevent_core-1.4.so.2.0 libevent_core.so.2.0)
+ar cru .libs/libevent_core.a  event.o buffer.o evbuffer.o log.o evutil.o select.o poll.o kqueue.o signal.o
+ranlib .libs/libevent_core.a
+creating libevent_core.la
+(cd .libs && rm -f libevent_core.la && ln -s ../libevent_core.la libevent_core.la)
+/bin/sh ./libtool --tag=CC   --mode=link gcc  -g -O2 -Wall -release 1.4 -version-info 2:0:0  -o libevent_extra.la -rpath /usr/lib event_tagging.lo http.lo evdns.lo evrpc.lo strlcpy.lo select.lo poll.lo kqueue.lo signal.lo  
+gcc -shared  -fPIC -DPIC -o .libs/libevent_extra-1.4.so.2.0  .libs/event_tagging.o .libs/http.o .libs/evdns.o .libs/evrpc.o .libs/strlcpy.o .libs/select.o .libs/poll.o .libs/kqueue.o .libs/signal.o  
+(cd .libs && rm -f libevent_extra.so.2.0 && ln -s libevent_extra-1.4.so.2.0 libevent_extra.so.2.0)
+ar cru .libs/libevent_extra.a  event_tagging.o http.o evdns.o evrpc.o strlcpy.o select.o poll.o kqueue.o signal.o
+ranlib .libs/libevent_extra.a
+creating libevent_extra.la
+(cd .libs && rm -f libevent_extra.la && ln -s ../libevent_extra.la libevent_extra.la)
+gmake[2]: Leaving directory `/home/younes/libevent-1.4.2-rc'
+Making all in sample
+gmake[2]: Entering directory `/home/younes/libevent-1.4.2-rc/sample'
+gcc -DHAVE_CONFIG_H -I. -I..    -I.. -I../compat -g -O2 -Wall -c event-test.c
+/bin/sh ../libtool --tag=CC   --mode=link gcc -I.. -I../compat -g -O2 -Wall   -o event-test event-test.o ../libevent.la 
+mkdir .libs
+gcc -I.. -I../compat -g -O2 -Wall -o .libs/event-test event-test.o  -L../.libs -levent 
+../.libs/libevent.so.2.0: warning: strcpy() is almost always misused, please use strlcpy()
+creating event-test
+gcc -DHAVE_CONFIG_H -I. -I..    -I.. -I../compat -g -O2 -Wall -c time-test.c
+/bin/sh ../libtool --tag=CC   --mode=link gcc -I.. -I../compat -g -O2 -Wall   -o time-test time-test.o ../libevent.la 
+gcc -I.. -I../compat -g -O2 -Wall -o .libs/time-test time-test.o  -L../.libs -levent 
+../.libs/libevent.so.2.0: warning: strcpy() is almost always misused, please use strlcpy()
+creating time-test
+gcc -DHAVE_CONFIG_H -I. -I..    -I.. -I../compat -g -O2 -Wall -c signal-test.c
+/bin/sh ../libtool --tag=CC   --mode=link gcc -I.. -I../compat -g -O2 -Wall   -o signal-test signal-test.o ../libevent.la 
+gcc -I.. -I../compat -g -O2 -Wall -o .libs/signal-test signal-test.o  -L../.libs -levent 
+../.libs/libevent.so.2.0: warning: strcpy() is almost always misused, please use strlcpy()
+creating signal-test
+gmake[2]: Leaving directory `/home/younes/libevent-1.4.2-rc/sample'
+Making all in test
+gmake[2]: Entering directory `/home/younes/libevent-1.4.2-rc/test'
+gmake  all-am
+gmake[3]: Entering directory `/home/younes/libevent-1.4.2-rc/test'
+gcc -DHAVE_CONFIG_H -I. -I..   -I.. -I../compat  -g -O2 -Wall -c test-init.c
+/bin/sh ../libtool --tag=CC   --mode=link gcc  -g -O2 -Wall   -o test-init test-init.o ../libevent_core.la 
+mkdir .libs
+gcc -g -O2 -Wall -o .libs/test-init test-init.o  -L../.libs -levent_core 
+creating test-init
+gcc -DHAVE_CONFIG_H -I. -I..   -I.. -I../compat  -g -O2 -Wall -c test-eof.c
+/bin/sh ../libtool --tag=CC   --mode=link gcc  -g -O2 -Wall   -o test-eof test-eof.o ../libevent_core.la 
+gcc -g -O2 -Wall -o .libs/test-eof test-eof.o  -L../.libs -levent_core 
+creating test-eof
+gcc -DHAVE_CONFIG_H -I. -I..   -I.. -I../compat  -g -O2 -Wall -c test-weof.c
+/bin/sh ../libtool --tag=CC   --mode=link gcc  -g -O2 -Wall   -o test-weof test-weof.o ../libevent_core.la 
+gcc -g -O2 -Wall -o .libs/test-weof test-weof.o  -L../.libs -levent_core 
+creating test-weof
+gcc -DHAVE_CONFIG_H -I. -I..   -I.. -I../compat  -g -O2 -Wall -c test-time.c
+/bin/sh ../libtool --tag=CC   --mode=link gcc  -g -O2 -Wall   -o test-time test-time.o ../libevent_core.la 
+gcc -g -O2 -Wall -o .libs/test-time test-time.o  -L../.libs -levent_core 
+creating test-time
+gcc -DHAVE_CONFIG_H -I. -I..   -I.. -I../compat  -g -O2 -Wall -c regress.c
+gcc -DHAVE_CONFIG_H -I. -I..   -I.. -I../compat  -g -O2 -Wall -c regress_http.c
+gcc -DHAVE_CONFIG_H -I. -I..   -I.. -I../compat  -g -O2 -Wall -c regress_dns.c
+gcc -DHAVE_CONFIG_H -I. -I..   -I.. -I../compat  -g -O2 -Wall -c regress_rpc.c
+gcc -DHAVE_CONFIG_H -I. -I..   -I.. -I../compat  -g -O2 -Wall -c regress.gen.c
+/bin/sh ../libtool --tag=CC   --mode=link gcc  -g -O2 -Wall   -o regress regress.o regress_http.o regress_dns.o regress_rpc.o regress.gen.o ../libevent.la 
+gcc -g -O2 -Wall -o .libs/regress regress.o regress_http.o regress_dns.o regress_rpc.o regress.gen.o  -L../.libs -levent 
+../.libs/libevent.so.2.0: warning: strcpy() is almost always misused, please use strlcpy()
+creating regress
+gcc -DHAVE_CONFIG_H -I. -I..   -I.. -I../compat  -g -O2 -Wall -c bench.c
+/bin/sh ../libtool --tag=CC   --mode=link gcc  -g -O2 -Wall   -o bench bench.o ../libevent.la 
+gcc -g -O2 -Wall -o .libs/bench bench.o  -L../.libs -levent 
+../.libs/libevent.so.2.0: warning: strcpy() is almost always misused, please use strlcpy()
+creating bench
+gmake[3]: Leaving directory `/home/younes/libevent-1.4.2-rc/test'
+gmake[2]: Leaving directory `/home/younes/libevent-1.4.2-rc/test'
+gmake[1]: Leaving directory `/home/younes/libevent-1.4.2-rc'

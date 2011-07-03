@@ -1,0 +1,124 @@
+--- jhove/classes//edu/harvard/hul/ois/jhove/JhoveBase.java	2007-05-10 19:57:11.000000000 +0200
++++ jhove-warc/classes//edu/harvard/hul/ois/jhove/JhoveBase.java	2008-11-08 22:56:10.000000000 +0100
+@@ -40,8 +40,9 @@
+     private static final String _name = "JhoveBase";
+     private static final String _release = "1.2";
+     private static final int [] DATE = {2007, 5, 10};
+-    private static final String _rights =
+-	"Copyright 2005-2007 by the President and Fellows of Harvard College";
++    private static final String _rights = "Copyright 2005-2007 by the President and Fellows of Harvard College";
++
++	
+ 
+     /** JHOVE buffer size property. */
+     private static final String BUFFER_PROPERTY = "edu.harvard.hul.ois." +
+@@ -104,6 +105,8 @@
+     /** Map of modules (for fast access by name). */
+     protected Map _moduleMap;
+     protected String _outputFile;
++    
++    protected String _dirFileOrUri;
+     /** SAX parser class. */
+     protected String _saxClass;
+     protected boolean _showRaw;
+@@ -431,6 +434,8 @@
+ 				String [] dirFileOrUri)
+ 	throws Exception
+     {
++    	_dirFileOrUri = dirFileOrUri[0];
++    	
+         _abort = false;
+     	/* If no handler is specified, use the default TEXT handler. */
+     	if (handler == null) {
+@@ -877,6 +882,12 @@
+     /**
+      *  Returns the abort flag.
+      */
++    
++   public String getFn () 
++    {
++        return _dirFileOrUri;
++    }
++    
+     public boolean getAbort ()
+     {
+         return _abort;
+@@ -1083,6 +1094,9 @@
+     {
+         return _mixVsn;
+     }
++    
++
++    
+ 
+     /******************************************************************
+      * Mutator methods.
+@@ -1092,6 +1106,12 @@
+      * Sets the buffer size.  A value of -1 signifies that the invoking
+      * code will assume the default buffer size.
+      */
++    
++    public void setFn (String fn) 
++    {
++        _dirFileOrUri = fn;
++    }
++    
+     public  void setBufferSize (int bufferSize)
+     {
+         _bufferSize = bufferSize;
+--- jhove/classes/build.xml	2006-02-17 16:12:05.000000000 +0100
++++ jhove-warc/classes/build.xml	2008-11-13 15:03:53.000000000 +0100
+@@ -55,6 +55,8 @@
+               edu/harvard/hul/ois/jhove/module/pdf/*.class,
+               edu/harvard/hul/ois/jhove/module/tiff/*.class,
+               edu/harvard/hul/ois/jhove/module/wave/*.class,
++              edu/harvard/hul/ois/jhove/module/warc/*.class,
++              com/
+ 	      edu/harvard/hul/ois/jhove/module/xml/*.class"/>
+   </target>
+ 
+--- jhove/jhove.tmpl	2007-03-29 18:28:20.000000000 +0200
++++ jhove-warc/jhove.tmpl	2008-11-17 02:59:21.000000000 +0100
+@@ -1,5 +1,7 @@
+ #!/bin/sh
+ 
++#set -x
++
+ ########################################################################
+ # JHOVE - JSTOR/Harvard Object Validation Environment
+ # Copyright 2003-2004 by JSTOR and the President and Fellows of Harvard College
+@@ -29,13 +31,13 @@
+ #
+ # Configuration constants:
+ 
+-JHOVE_HOME=[your directory path]/jhove
++#JHOVE_HOME=[your directory path]/jhove
+ 
+-JAVA_HOME=/usr/java
+-JAVA=/usr/bin/java
++#JAVA_HOME=/usr/java
++JAVA=$JAVA_HOME/bin/java
+ 
+ #XTRA_JARS=/users/stephen/xercesImpl.jar
+-EXTRA_JARS=              # Extra .jar files to add to CLASSPATH
++EXTRA_JARS=/usr/lib/ant/lib/jna.jar
+ 
+ # NOTE: Nothing below this line should be edited
+ ########################################################################
+--- jhove/conf/jhove.conf	2008-02-25 15:43:02.000000000 +0100
++++ jhove-warc/conf/jhove.conf	2008-11-10 21:05:29.000000000 +0100
+@@ -4,10 +4,13 @@
+  xmlns="http://hul.harvard.edu/ois/xml/ns/jhove/jhoveConfig"
+  xsi:schemaLocation="http://hul.harvard.edu/ois/xml/ns/jhove/jhoveConfig
+                      http://hul.harvard.edu/ois/xml/xsd/jhove/1.4/jhoveConfig.xsd">
+- <jhoveHome>/users/stephen/projects/jhove</jhoveHome>
++ <jhoveHome>/root/jhove-1_1/jhove</jhoveHome>
+  <defaultEncoding>utf-8</defaultEncoding>
+  <tempDirectory>/var/tmp</tempDirectory>
+  <bufferSize>131072</bufferSize>
++  <module>
++  <class>edu.harvard.hul.ois.jhove.module.WarcModule</class>
++ </module>
+  <module>
+   <class>edu.harvard.hul.ois.jhove.module.AiffModule</class>
+  </module>

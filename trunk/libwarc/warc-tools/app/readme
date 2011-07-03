@@ -1,0 +1,104 @@
+
+/* ------------------------------------------------------------------- */
+/* Copyright (c) 2007-2008 Hanzo Archives Limited.                     */
+/*                                                                     */
+/* Licensed under the Apache License, Version 2.0 (the "License");     */
+/* you may not use this file except in compliance with the License.    */
+/* You may obtain a copy of the License at                             */
+/*                                                                     */
+/*     http://www.apache.org/licenses/LICENSE-2.0                      */
+/*                                                                     */
+/* Unless required by applicable law or agreed to in writing, software */
+/* distributed under the License is distributed on an "AS IS" BASIS,   */
+/* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or     */
+/* implied.                                                            */
+/* See the License for the specific language governing permissions and */
+/* limitations under the License.                                      */
+/*                                                                     */
+/* You may find more information about Hanzo Archives at               */
+/*                                                                     */
+/*     http://www.hanzoarchives.com/                                   */
+/*                                                                     */
+/* You may find more information about the WARC Tools project at       */
+/*                                                                     */
+/*     http://code.google.com/p/warc-tools/                            */
+/* ------------------------------------------------------------------- */
+
+This directory contains applications made on the top of WARC
+
+o warcdump (done)
+
+SRS 11-14, 27-28
+
+Dump a WARC file
+
+Usage: ./app/warcdump -f <file.warc> [-c] [-v]
+
+    * -f : valid WARC file name
+    * [-c] : GZIP compressed WARC (default true)
+    * [-v] : dump ANVL (default false) 
+
+o warcfilter (done)
+
+SRS 16-20
+
+Filter WARC records based on MIME or URI
+
+Usage: ./app/warcfilter -f <file.warc> [-c] -s <match> [-t] [-v]
+
+    * -f : valid WARC file name
+    * [-c] : GZIP compressed WARC (default true)
+    * -s : pattern string
+    * [-t] : compare with MIME (default true)
+    * [-v] : dump ANVL (default false)\n" 
+
+o warcvalidator (done)
+
+SRS 31-32
+
+Check WARC file consistency
+
+Usage: ./app/warcvalidator -f <file.warc> [-c] [-v]
+
+    * -f : valid WARC file name
+    * [-c] : GZIP compressed WARC (default true)
+    * [-v] : verbose mode (default true) 
+
+o warcvalidator.sh (done)
+
+Check if all WARC files in a directory are valid
+
+Usage: app/warcvalidator.sh <-d dirname> [-c wgzip] [-v] [-h]
+
+    * -d : directory name containing ARC files
+    * -c : WARC files are compressed (default yes)
+    * -h : print this help message
+    * -v : output version information and exit 
+
+o arc2warc (done)
+
+SRS 11-14, 15, 44
+
+ARC to WARC convertor
+
+Usage: ./app/arc2warc -a <file.arc> [-b] -f <file.warc> [-c]
+
+    * -a : valid ARC file name
+    * [-b] : GZIP compressed ARC (default true)
+    * -f : valid WARC file name
+    * [-c] : GZIP compressed WARC (default true) 
+
+o arc2warc.sh (done)
+
+SRS 31-32
+
+Converts all ARC files in a directory to WARC files
+
+Usage: ./app/arc2warc.sh <-d dirname> [-b agzip] [-c wgzip] [-v] [-h]
+
+    * -d : directory name containing ARC files
+    * -b : ARC files are compressed (default yes)
+    * -c : WARC files will be compressed (default yes)
+    * -h : print this help message
+    * -v : output version information and exit 
+

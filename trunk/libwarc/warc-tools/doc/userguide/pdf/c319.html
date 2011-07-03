@@ -1,0 +1,256 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN""http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+> Programming with the warc library </TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"><LINK
+REL="HOME"
+TITLE=" warc-tools version 0.17  A library for data archiving "
+HREF="index.html"><LINK
+REL="PREVIOUS"
+TITLE=" mod_lighttpd "
+HREF="x300.html"><LINK
+REL="NEXT"
+TITLE=" Data types "
+HREF="x351.html"></HEAD
+><BODY
+CLASS="chapter"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>warc-tools version 0.17  A library for data archiving</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x300.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x351.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="chapter"
+><H1
+><A
+NAME="chapter4"
+></A
+>Chapter 4.  Programming with the warc library </H1
+><P
+>&#13;  This chapter describes the principals of the functions privided for programming with the libwarc. 
+  However for more details we can refer to the documentation generated with Doxygen
+  from the warc-tools source code.
+  </P
+><P
+>&#13;  The  warc library has been designed for three main purposes :
+  <P
+></P
+><UL
+><LI
+><P
+>&#13;  The warc library provides a set of routines that allow WARC files creation,
+  this routines must be able to check that the arguments given by the user 
+  are conform with the WARC format.
+  </P
+></LI
+><LI
+><P
+>&#13;  The warc library provides a set of routines that allow to extract information
+  from WARC files (headers, anvl fields and data block). These routines must be able to
+  check that the data obtained is conform with the WARC format (validation of a WARC file).
+  </P
+></LI
+><LI
+><P
+>&#13;  The warc library provides a set of routines that allow to convert files from the 
+  Arc format to the WARC format. These routines must be able to check that the ARC
+  file is conform with the ARC format.
+  </P
+></LI
+></UL
+>
+  We can use the routines offered by the warc library for other purposess. In the following, we
+  will describe the main data types and functions of this library.
+  </P
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="AEN330"
+>4.1. Generalities</A
+></H1
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN332"
+>4.1.1. Object-oriented concept</A
+></H2
+><P
+>&#13;  The manner how the source code is generated makes the warc function very easy to use.
+  The project is built by using the oriented-object concept in C language.
+  Although the C  language is not an object-oriented language, we can simulate the object-oriented beahaviour 
+  by using mainly pointers to functions concept.
+  For using all functions of the warc library, we must include the header file <TT
+CLASS="filename"
+>"warc.h"</TT
+> in the program.
+  </P
+><P
+>&#13;  We use the function <CODE
+CLASS="function"
+>bless</CODE
+> to create any object. In order to differentiate between
+  the classes, the first argument of this function is the name of object. For example, if we 
+  want to  create a WFile object, the name of this parameter is <CODE
+CLASS="parameter"
+>WFile</CODE
+>.
+<P
+CLASS="literallayout"
+><br>
+&nbsp;&nbsp;The&nbsp;function&nbsp;<CODE
+CLASS="function"
+>bless</CODE
+>&nbsp;returns&nbsp;the&nbsp;pointer&nbsp;to&nbsp;othe&nbsp;created&nbsp;object&nbsp;in&nbsp;the&nbsp;case&nbsp;of&nbsp;the&nbsp;success&nbsp;of&nbsp;creation.&nbsp;<br>
+</P
+>
+  </P
+><P
+>&#13;  The function <CODE
+CLASS="function"
+>destroy</CODE
+> is used to destroy any object created by <CODE
+CLASS="function"
+>bless</CODE
+>. It takes as parameter the pointer of the object.
+  </P
+><P
+>&#13;  This way to work notably facilitates the memory management, every object created by
+  <CODE
+CLASS="function"
+>bless</CODE
+> must be destroyed by <CODE
+CLASS="function"
+>destroy</CODE
+>.
+  </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN347"
+>4.1.2. The user interface</A
+></H2
+><P
+>&#13;  The warc library provides to the functions user a clear and easy interface : A WFile class for the manipulation of WARC files,  
+  a WRecord class for the manipulation of the WARC Records, the ARecord object for the manipulation of ARC Records and finally the class Afile for exploitation of the ARC files.
+   The prototypes of all theese function can be found in the corresponding header files in the <TT
+CLASS="filename"
+>/lib/public/</TT
+> directory.
+  </P
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x300.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x351.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>mod_lighttpd</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Data types</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

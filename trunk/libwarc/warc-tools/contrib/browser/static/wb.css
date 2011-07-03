@@ -1,0 +1,71 @@
+body { background-color: white; }
+
+#mainsearch
+{
+	position: fixed;
+	text-align: center;
+	top: 30%;
+	left: 37%;
+}
+
+#hanzologo
+{
+	position: fixed;
+	top: 1%;
+	right: 1%;	
+}
+
+#logo
+{
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-size: 3em;
+	letter-spacing: 0.1em;
+	font-variant: small-caps;
+	color: #003399;
+	
+}
+
+#logo a, a:link, a:visited, a:active 
+{
+color: #003399;
+text-decoration: none;
+}
+
+#footer
+{
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-size: 0.2em;
+	position: fixed;
+	left: 36%;
+	bottom: 1%;
+}
+
+.resultsheader
+{
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	background-color: lightblue;
+}
+
+.results
+{
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+}
+
+.yearcolumn
+{
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	background-color: #33ccff;
+}
+
+.yearheader
+{
+	font-family: Verdana, Arial, Helvetica, sans-serif;
+	background-color: #99ccff;
+}
+
+#resulttable
+{
+	position: fixed;
+    width:90%;
+    left:5%;
+}

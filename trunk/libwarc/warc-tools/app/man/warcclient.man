@@ -1,0 +1,136 @@
+.\"
+.TH warcclient " 09/01/2008 "
+.nh
+.ad l
+.SH "NAME"
+warcclient \-  to access remote WARC resource.
+
+.SH "SYNOPSIS"
+.HP 3
+\fBwarcclient\fR   \fB-i \fIip \fB-p \fIport \fB-t \fIremote_warc \fB-o \fIlocal_warc \fB-s \fIserver_name
+   [-f \fIoffset\fP] -[u \fIuri_pattern\fP] [-n \fIcontent_type_pattern\fP]
+   [-d \fIrecord_type_string\fP] [-c] [-r]
+
+.SH "DESCRIPTION"
+.PP
+\fBwarcclient\fR
+allows to send request to a server for claiming warc resources.
+.PP 
+You can make request to the WARC server described above or to Apache or lighttpd server but you must check that mod_apache or
+mod_lighttpd are correctly configured in server machine. Read the "/doc/install" for more details.
+.SH "OPTIONS"
+.PP
+The options for the command. 
+\fBwarcclient\fR
+are\ :
+
+.PP
+\fB\-i -p -s\fR 
+.RS 4
+This option are mandatory, the client makes request to the located server at the address
+specified as argument of the -i option, on the port specified after -p. the option -s indicates for which kind
+server the request is sent to: the server may be a warcserver (launched by the command warcserver), an
+apache2 server with a mod_warc module, a lighttpd-cgi server using a warc.cgi module or a lighttpd-fcgi
+server using a warc.fcgi module.
+.PP
+  If you connect to a warcserver (launched by the command warcserver on the same IP address and
+  port), the server name in this case is warcserver
+.PP
+  If you want to connect to Apache server (configuration of Apache server is shown in section
+  mod_apache) server name in this case is apache.
+.PP
+  If you want connect to lighttpd server ( Configuration of lighttpd server is show in section
+  mod_lighttpd) server name in this case is lighttpd-cgi or lighttpd-fcgi ( for cgi and fastcgi support
+  respectively).
+.RE
+.PP
+\fB\-t  -o\fR 
+.RS 4
+This option are mandatory, the option -t must preceed the name of WARC file that the client
+want to get from server. Option -o must preceed the file name desired in the client machine.
+
+.RE
+.PP
+\fB\-f\fR 
+.RS 4
+This option gives the value of the offset in warc file from where we start the transfer. The offset is the
+beginning of the WARC Record to get in WARC file. If you do not pass -f to the command offset by
+default is zero.
+.RE
+.PP
+\fB\-r\fR 
+.RS 4
+This option is used to indicate that the whole WARC file is required, and the transfer will start from the
+indicated offset.
+.RE
+.PP
+The result obtained when you want to get file or record are not filtered. If you want to have filtered
+WARC files, you can use options -u, -n or -d.
+.RE
+.PP
+\fB\-u\fR 
+.RS 4
+Use the option -u to filter on the WARC_TARGET_URI field, it comes before the string which
+represents the filter.
+
+.RE
+.PP
+\fB\-n\fR 
+.RS 4
+Use the option -n to filter on the Content-Type field, it comes before the string which represents the
+filter.
+
+.RE
+.PP
+\fB\-d\fR 
+.RS 4
+Use the option -d to filter on WARC-Type field, it comes before the string which represents the filter.
+If you specifies nothing after -d the value of filter is "unknown".
+
+.RE
+.PP
+\fB\-l\fR 
+.RS 4
+Use the option -l to get the list of the WARC Redords stored in the required WARC file. In this case,
+the output file will be used to store this list which can be written into four possible formats: html,
+xml, text and json. each element of the list will give some information on the concerned WARC
+Record like its rank, offset, its header, etc.
+
+
+.SH "EXAMPLES"
+.TP
+users@users-desktop:~$ warcclient -i 192.168.1.6 -p 8080 -s warcserver \
+                                -t test.warc -o vertest.warc -f 0
+.RE
+.PP
+.RS 5
+Use the warcclient to get a WARC Record.
+.RE
+.PP
+users@users-desktop:~$ warcclient -i 192.168.1.6 -p 8080 -s warcserver\
+                                -t test.warc -o vertest.warc -f 0 -n gif
+
+.RE
+.PP
+.RS 5
+Use the warcclient to get a filtered WARC file.
+
+.RE
+.PP
+users@users-desktop:~$ warcclient -i 192.168.1.6 -p 8080 -s apache \
+                                -t test.warc -o vertest.warc -f 0 -l xml
+
+.RE
+.PP
+.RS 5
+Use the warcclient to get the records list.
+
+.RE
+.PP
+users@users-desktop:~$ warcclient -i 192.168.1.6 -p 8080 -s lighttpd-fcgi \
+                                 -t test.warc -o vertest.warc -f 0 -l xml
+
+.RE
+.PP
+.RS 5
+Use the warcclient with lighttpd using fastcgi module.

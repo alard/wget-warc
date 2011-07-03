@@ -1,0 +1,251 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN""http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+> arc file handling  </TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"><LINK
+REL="HOME"
+TITLE=" warc-tools version 0.17  A library for data archiving "
+HREF="index.html"><LINK
+REL="UP"
+TITLE=" Programming with the warc library "
+HREF="c319.html"><LINK
+REL="PREVIOUS"
+HREF="x522.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>warc-tools version 0.17  A library for data archiving</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x522.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 4. Programming with the warc library</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+>&nbsp;</TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="AEN668"
+>4.4. arc file handling</A
+></H1
+><P
+>&#13;  One of current application of warc-tools is converted arc file to warc file, for that
+  reason libwarc provide many functions to manipulate arc files.
+  This functions are similar at functions that provides warc files but
+  we use arc files only in mode reader.
+  </P
+><P
+>&#13;  To create arc file object you can use
+  <PRE
+CLASS="programlisting"
+>&#13;  void * a = bless (AFile, "file.arc", ARC_FILE_DETECT_COMPRESSION, ".");
+  </PRE
+>
+  </P
+><P
+>&#13;  Using this code you can extract all arc records in arc file and display there content
+  information.
+  <DIV
+CLASS="example"
+><A
+NAME="AEN674"
+></A
+><P
+><B
+>Example 4-7.  Extract header fields from arc file </B
+></P
+><PRE
+CLASS="programlisting"
+>&#13;  void *ar = NIL;
+  void * a = bless (AFile, "file.arc", ARC_FILE_DETECT_COMPRESSION, ".");
+  while (AFile_hasMoreRecords (a) ) 
+    { 
+      void * ar  = AFile_nextRecord (a); 
+
+      unless (ar) 
+      { 
+        destroy (a); 
+        return; 
+      }
+    
+      fprintf (stdout, "URL:  %s\n", ARecord_getUrl (ar) ); 
+      fprintf (stdout, "Date: %s\n", Arecord_getCreationDate (ar) ); 
+      fprintf (stdout, "Mime: %s\n", ARecord_getMimeType (ar) ); 
+      fprintf (stdout, "IP:   %s\n", Arecord_getIpAddress (ar) );
+
+     }
+  </PRE
+></DIV
+>
+  </P
+><P
+>&#13;  Combined function that manipulate arc file and function that manipulate the mode
+  writer  of warc file you can convert arc file to warc file.
+  </P
+><P
+>&#13;  You must use  function <CODE
+CLASS="function"
+>Arecord_transferContent</CODE
+> that allows 
+  the transfer the data block from arc record warc record.
+  <PRE
+CLASS="programlisting"
+>&#13;  warc_bool_t ARecord_transferContent (void * ar, void * wr, void * a);
+  </PRE
+>
+  ar is the arc record object, wr is
+  the warc record object and a is the arc file object.
+  </P
+><P
+>&#13;  The format of date in arc format is different then the warc format, for that 
+  you must need to convert date by using function <CODE
+CLASS="function"
+> WRecord_setDateFromArc </CODE
+>
+  </P
+><P
+>&#13;  This source code shows how to create warc file from arc file.
+  <DIV
+CLASS="example"
+><A
+NAME="AEN684"
+></A
+><P
+><B
+>Example 4-8.  Convert arc file to warc file </B
+></P
+><PRE
+CLASS="programlisting"
+>&#13;  
+  #define uS(s)  ((warc_u8_t *) (s))
+  #define makeS(s) uS(s), w_strlen (uS(s))
+  #define makeU(s) (const warc_u8_t *) (s), (warc_u64_t) w_strlen(uS(s))
+
+  void * w = bless (WFile, "file.warc", WARC_FILE_WRITER,
+               WARC_FILE_DETECTION_COMPRESSION, ".");
+  void * a = bless (AFile, "file.arc", ARC_FILE_DETECT_COMPRESSION, ".");
+  while (AFile_hasMoreRecords (a) ) 
+    { 
+      void * ar  = AFile_nextRecord (a); 
+      bless (WRecord);
+      WRecord_setTargetUri  (wr, makeS (ARecord_getUrl (ar)));
+      WRecord_setRecordType  (wr, WARC_RESOURCE_RECORD);
+      WRecord_setDateFromArc (wr, makeS (ARecord_getCreationDate (ar) ) );
+      WRecord_setContentType  (wr, makeS (ARecord_getMimeType (ar) ) );
+      UID_hash (u, makeU (ARecord_getUrl (ar) ) );
+      WUUID_hash (u, makeU (ARecord_getCreationDate (ar) ) );
+      WRecord_setRecordId (wr, makeS (WUUID_text (u) ) );
+      WRecord_setIpAddress (wr, makeS (ARecord_getIpAddress (ar) ) );
+      ARecord_transferContent (ar, wr, a);
+      WFile_storeRecord (w, wr);
+      destroy (ar);
+      destroy (wr);
+    }
+  destroy (a);
+  destoy (w);
+  </PRE
+></DIV
+>
+  </P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x522.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>&nbsp;</TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c319.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>&nbsp;</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

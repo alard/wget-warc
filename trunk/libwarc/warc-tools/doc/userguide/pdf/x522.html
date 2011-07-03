@@ -1,0 +1,450 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN""http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+></TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"><LINK
+REL="HOME"
+TITLE=" warc-tools version 0.17  A library for data archiving "
+HREF="index.html"><LINK
+REL="UP"
+TITLE=" Creation and destruction of objects "
+HREF="x415.html"><LINK
+REL="PREVIOUS"
+TITLE=" Creation and destruction of objects "
+HREF="x415.html"><LINK
+REL="NEXT"
+TITLE=" arc file handling  "
+HREF="x668.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>warc-tools version 0.17  A library for data archiving</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x415.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 4. Programming with the warc library</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x668.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="AEN522"
+>4.2. </A
+></H1
+><FONT
+COLOR="RED"
+> WRecord object routines
+  <P
+>&#13;  Now, we will describe the routines provided with the WRecord class. These functions will allow us to set up and recover the main fields of the WRecord object and also its  extra fields (see the ISO WARC format specification). There is also functions that gives information about an extracted WARC Record linked to the WRecord object.
+</P
+>
+	<DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN525"
+>4.2.1. WARC Record Fileds getting functions</A
+></H2
+><P
+>&#13;	In the folowing, we give the description of the functions of the WRecord class that allow to recover the fields of a WARC Record. These function are very useful when we want to get the fileds of the header of an extracted WARC Record. For each predefinded WARC Record header field, ther is its corresponding getting function. There is also a mean to recover the Extra non predefined fields (the ANVL fields of the header), then, we may get all the stored information about the WARC Record.
+		<P
+></P
+><UL
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getWarcId</CODE
+>: This function is used to get the WARC ID of the WARC Record. Remember that the format of a WARC ID is: WARC/version, where version is the actual version of the WARC Record, for example, the lastest version of the WARC is 0.17, then the WARC ID of any WARC Record is <CODE
+CLASS="constant"
+>"WARC/0.17"</CODE
+>.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getRecordType</CODE
+>: This function is used to get the WARC-Type field of the WARC Record. Lets remember that there is eight predefined types for a WARC Record, then, an enumertive type has been used to represent each of theses type. This function will return us the corresponding enumaration to the WARC Type of our WARC Record. The list of possible enumearations is given ordered below:
+			<P
+></P
+><UL
+><LI
+STYLE="list-style-type: disc"
+><CODE
+CLASS="constant"
+>WARC_UNKNOWN_RECORD</CODE
+>: <P
+>For an eventual unknown WARC Record type.</P
+></LI
+><LI
+STYLE="list-style-type: disc"
+><CODE
+CLASS="constant"
+>WARC_INFO_RECORD</CODE
+>: <P
+>For the <CODE
+CLASS="constant"
+>"warcinfo"</CODE
+> type.</P
+></LI
+><LI
+STYLE="list-style-type: disc"
+><CODE
+CLASS="constant"
+>WARC_RESPONSE_RECORD</CODE
+>: <P
+>For the <CODE
+CLASS="constant"
+>"response"</CODE
+> type.</P
+></LI
+><LI
+STYLE="list-style-type: disc"
+><P
+><CODE
+CLASS="constant"
+>WARC_REQUEST_RECORD</CODE
+>: For the <CODE
+CLASS="constant"
+>"request"</CODE
+> type.</P
+></LI
+><LI
+STYLE="list-style-type: disc"
+><P
+><CODE
+CLASS="constant"
+>WARC_METADATA_RECORD</CODE
+>: For the <CODE
+CLASS="constant"
+>"metadata"</CODE
+> type.</P
+></LI
+><LI
+STYLE="list-style-type: disc"
+><P
+><CODE
+CLASS="constant"
+>WARC_REVISIT_RECORD</CODE
+>: For the <CODE
+CLASS="constant"
+>"revisit"</CODE
+> type.</P
+></LI
+><LI
+STYLE="list-style-type: disc"
+><P
+><CODE
+CLASS="constant"
+>WARC_CONVERSION_RECORD</CODE
+>: For the <CODE
+CLASS="constant"
+>"conversion"</CODE
+> type.</P
+></LI
+><LI
+STYLE="list-style-type: disc"
+><P
+><CODE
+CLASS="constant"
+>WARC_CONTINUATION_RECORD</CODE
+>: For the <CODE
+CLASS="constant"
+>"continuation"</CODE
+> type.</P
+></LI
+><LI
+STYLE="list-style-type: disc"
+><P
+><CODE
+CLASS="constant"
+>WARC_RESOURCE_RECORD</CODE
+>: For the <CODE
+CLASS="constant"
+>"resource"</CODE
+> type.</P
+></LI
+></UL
+>
+		</P
+><P
+>&#13;			all these enimeraions are defined in the public header <FONT
+COLOR="RED"
+>"wrectype.h" that must be included to have the possibility to use them. And if we may add a new WARC Type to this list, we can simply add this new type to the enumartions.
+			</FONT
+></P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getRecordId</CODE
+>: This function gives the Id of the WARC Record stored in the WARC-Record-ID field.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getDate</CODE
+>: This function gives the Creation date of the WARC Record stored in its WARC-Date field.</P
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getContentLength</CODE
+>: This function gives the size of the data block of the WARC Record. It is stored in the Content-Length field.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getContentType</CODE
+>: This function gives the type of the content of the WARC Record data block. It is stored in the Content-Type field.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getConcurrentTo</CODE
+>: This function gives the Id of the WARC Record which the current one is concurrent to. It is stored in the WARC-Concurrent-To field.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getBlockDigest</CODE
+>: This function gives the digest value of the data block folowing a specific algrithm. It is stored in the WARC-Block-Digest field of the WARC Record header.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getPayloadDigest</CODE
+>: This function gives the digest value of the data block payload following a specific algorithm. It is stored in the header field WARC-Payload-Digest.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getIpAddress</CODE
+>: This function gives the Ip address from where the data block was crawled. It is stored in the WARC-IP-Address field.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getRefersTo</CODE
+>: This function gives the Id of the WARC Record to which the current one refers. It is stored in the field WARC-Refers-To</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getTargetUri</CODE
+>: This function gives the URI of the source from where the data block was crawled. It is stored in the WARC-Target-URI field</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getTruncated</CODE
+>: If the WARC Record has been trucncated, this function will give us the reason of the tructcation</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getWarcInfoId</CODE
+>: This function gives the Id of the <CODE
+CLASS="constant"
+>"warcinfo"</CODE
+> Record describing the WARC file to which the current WARC Record belongs. It is stored in the WARC-Warcinfo-Id field.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getFilename</CODE
+>: This function gives the name of the WARC file to which this WARC Record belongs. It is stored in the WARC-Filename field.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getProfile</CODE
+>: This function is only useful in the cas of a <CODE
+CLASS="constant"
+>"revisit"</CODE
+> Recrod because that this information may only exist in this case. It returns the kind of transformation applied on an already visited data but found under an other form. This value is stored in the WARC-Profile field</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getIdentifiedPayloadType</CODE
+>: This function returns the identified type of the payload of the WARC Record data block. This value is stored in the WARC-Identified-Payload-Type field.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getSegmentOriginId</CODE
+>: This function is only usable in the case of a fragment of a segmented record identified by the <CODE
+CLASS="constant"
+>"continuation"</CODE
+> type. It gives the Id of the first fragment of the whole WARC Record, this one is stored in the WARC-Segment-Origin-Id field</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getSegmentNumber</CODE
+>: This function is also usable in the WARC Record fragment case. It gives the number of current fragment, this value is stored in the WARC-Segment-Number field </P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+><CODE
+CLASS="function"
+>WRecord_getSegTotalLength</CODE
+>: This function is only usable in with the last fragment of a segmented WARC Record. It gives the total Length of the whole WARC Record knowing that the Content-Length field will only give the actual Length of the data fragment stored in the record. It is stored in the WARC-Segment-Total-Length field.</P
+></LI
+></LI
+></UL
+>
+	</P
+></DIV
+>
+  </FONT
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x415.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x668.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Creation and destruction of objects</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="x415.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>arc file handling</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

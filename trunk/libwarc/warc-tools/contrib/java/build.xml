@@ -1,0 +1,49 @@
+<project name="WarcTools" basedir="." default="main">
+
+  <!-- for JNA.jar -->
+  <property name="lib.dir"     value="/usr/lib/ant/lib"/>
+
+ <!--  <path id="classpath"> -->
+ <!--     <fileset dir="${lib.dir}" includes="**/*.jar"/> -->
+ <!--   </path> -->
+
+ <path id="classpath">
+   <pathelement location="${lib.dir}/jna.jar"/>
+ </path>
+
+  <target name="clean">
+    <delete dir="classes"/>
+    <delete dir="jar"/>
+  </target>
+  
+  <target name="compile">
+    <mkdir dir="classes"/>
+    <javac srcdir="src" destdir="classes"/>
+  </target>
+  
+  <target name="jar-main">
+    <!-- generates the jar file with main, jna isn't included -->
+    <mkdir dir="jar"/>
+    <jar destfile="jar/warctools-with-main.jar">
+      <fileset dir="classes"/>
+      <manifest>              
+        <attribute name="Main-Class" value="warctools.Main"/>
+      </manifest>
+    </jar>
+  </target>
+  
+  
+  <target name="jar" depends="compile">
+    <!-- generates the jar file without jna nor main -->
+    <mkdir dir="jar"/>
+    <jar destfile="jar/warctools.jar">
+      <fileset dir="classes" excludes="**/Main.class"/>
+    </jar>
+  </target>     
+  
+  <target name="run" depends="jar-main">
+    <java jar="jar/warctools-with-main.jar" fork="true"/>
+  </target>
+  
+  <target name="main" depends="clean,compile,jar,jar-main"/>
+</project>

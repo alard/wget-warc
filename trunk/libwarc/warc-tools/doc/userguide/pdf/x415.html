@@ -1,0 +1,774 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN""http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+> Creation and destruction of objects </TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"><LINK
+REL="HOME"
+TITLE=" warc-tools version 0.17  A library for data archiving "
+HREF="index.html"><LINK
+REL="UP"
+TITLE=" Programming with the warc library "
+HREF="c319.html"><LINK
+REL="PREVIOUS"
+TITLE=" Data types "
+HREF="x351.html"><LINK
+REL="NEXT"
+HREF="x522.html"></HEAD
+><BODY
+CLASS="sect1"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>warc-tools version 0.17  A library for data archiving</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="x351.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 4. Programming with the warc library</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="x522.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="AEN415"
+>4.3. Creation and destruction of objects</A
+></H1
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN417"
+>4.3.1. Creation and destrunction of WFile object</A
+></H2
+><P
+>&#13;  We use function <CODE
+CLASS="function"
+>bless</CODE
+> to create a WFile object for the manipulation of a WARC file    
+  </P
+><PRE
+CLASS="programlisting"
+>&#13;       void * bless (WFile, const char* fname, warc_u32_t  maxsize,
+                  wfile_mod_t mode, const wfile_comp_t compressed ,
+                  const char * dname)
+       </PRE
+><P
+>&#13;       <CODE
+CLASS="varname"
+>maxsize</CODE
+> is a <SPAN
+CLASS="type"
+>warc_u32_t</SPAN
+> paraleter guiving the maximum size of the WARC file. Used only in the writing case.
+       </P
+><P
+>&#13;       <CODE
+CLASS="varname"
+>mode</CODE
+>  is <SPAN
+CLASS="type"
+>wfile_mod_t</SPAN
+> parameter indicating the opening mode of the WARC file.
+       </P
+><P
+>&#13;       <CODE
+CLASS="varname"
+>compressed</CODE
+> is a <SPAN
+CLASS="type"
+>wfile_comp_t</SPAN
+> parameter indicating the compression mode of the WARC file (useful in writing mode).
+        </P
+><P
+>&#13;        In general <CODE
+CLASS="parameter"
+>WARC_FILE_DETECT_COMPRESSION</CODE
+> is used to allow autodetection of the compression mode in the reading mode.
+        </P
+><P
+>&#13;        <CODE
+CLASS="varname"
+>fname</CODE
+> and <CODE
+CLASS="varname"
+>dname</CODE
+> are simple strings guiving respectively  the name of the WARC file and the working directoy of the WFile objet routines (for temporary files creation).
+        </P
+><P
+>&#13;        If we want to get information from an existing  WARC file <TT
+CLASS="filename"
+>"file.warc"</TT
+> present in some
+        directory, we create  the WFile object in reading mode like this :
+        <DIV
+CLASS="example"
+><A
+NAME="AEN438"
+></A
+><P
+><B
+>Example 4-1.  Creation of a WFile object in reading mode </B
+></P
+><PRE
+CLASS="programlisting"
+>&#13;        bless (WFile, "file.warc", 0, WARC_FILE_READER,
+            WARC_FILE_DETECT_COMPRESSION, ".")
+        </PRE
+></DIV
+>
+        </P
+><P
+>&#13;        <CODE
+CLASS="varname"
+>maxsize</CODE
+> in not used in this case because its value is not important. We notice also that when a WFile is created in reading mode, the file descriptor inside it will automatically seek the begining of the WARC file.
+        </P
+><P
+>&#13;        If you want to open a WaRC file object to append int it some WARC Records, we must create a WFile
+        object in writng mode like this :
+        <DIV
+CLASS="example"
+><A
+NAME="AEN444"
+></A
+><P
+><B
+>Example 4-2.  Creation of a WFile object in writing mode </B
+></P
+><PRE
+CLASS="programlisting"
+>&#13;        bless (WFile, "file.warc", 600* 1024 * 1024, 
+            WARC_FILE_WRITER,WARC_FILE_DETECT_COMPRESSION, ".")
+        </PRE
+></DIV
+>
+        </P
+><P
+>&#13;        We use <CODE
+CLASS="parameter"
+>WARC_FILE_WRITER</CODE
+> as opening mode in this case. In this mode, the value of the maxsize field is significant: it indicates the maximum size of the WARC file that must not be exceeded when we write in the WARC file. Notice that if this value is below the currennt size of the file, the WFile object is not created. This allows to avoid the resize of the WARC file and hence the loose of the data stored in. When a WFile object is created in writing mode, its internal file descripto will automatically seek the end of the WARC file, this will ensure that a WARC Record will never be stored in the middle, and hence corrupt the WARC file, but it is allways appended in the end
+        </P
+><P
+>&#13;        To destroy cleanly an already created WFile object, we may use the function <CODE
+CLASS="function"
+>destroy</CODE
+>. It will take as parameter the pointer to the WFile object instance we want to free.
+        <PRE
+CLASS="programlisting"
+>&#13;        destroy (void * refobject).
+        </PRE
+>
+        </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN452"
+>4.3.2. Creation and destruction if a WRecord object</A
+></H2
+><P
+>&#13;  We may use <CODE
+CLASS="function"
+>bless</CODE
+> and <CODE
+CLASS="function"
+>destroy</CODE
+> to create and destroy warc record object.
+  The function <CODE
+CLASS="function"
+>bless</CODE
+> takes no parameter for the creation of a <CODE
+CLASS="parameter"
+>WRecord</CODE
+> object (a WARC Record object).
+  <PRE
+CLASS="programlisting"
+>&#13;  void * recobject = bless (WRecord);
+  </PRE
+>
+  </P
+><P
+>&#13;	  To destroy cleanly an already created WFile object, we may use the function <CODE
+CLASS="function"
+>destroy</CODE
+>. It will take as parameter the pointer to the WFile object instance we want to free.
+	  <PRE
+CLASS="programlisting"
+>&#13;		  destroy (void * refobject).
+	  </PRE
+>
+        </P
+></DIV
+><DIV
+CLASS="sect1"
+><H1
+CLASS="sect1"
+><A
+NAME="AEN463"
+>4.1. WFile object routines</A
+></H1
+><P
+>&#13;  In this section, we give a description of the main functions provided to manipulate a WFile object after having created it with <CODE
+CLASS="function"
+>bless</CODE
+>. A WARC File have to be only manipulated through a WFile object using its routins. That will allow the safe recovering of the information stored inside. It is dangerous and not recomanded to manipulate a WARC file with an other way at the risk of corrupting it.
+  </P
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN467"
+>4.1.1. Reading the WARC Records of a WARC file</A
+></H2
+><P
+>&#13;	To read in sequence the WARC Records of a WARC file opned by the construction of a WFile object on it, we have to use the function <CODE
+CLASS="function"
+>WFile_nextRecord</CODE
+> which will take as parameter the pointer to the corresponding WFile object. This function will extract the header of the WARC Record pointed by the WFile object, then this last one will jump to the next WARC Record. If safetly used, the file descriptor inside the WFile object will allways point to a valid WARC Record in the WARC file or to the end of file. Hence, we are sure tha we will never badly extract the header of the wanted WARC Rrcord using the <CODE
+CLASS="function"
+>WFile_nextRecord</CODE
+>.
+	</P
+><P
+>&#13;	When succeeding in the reading operation, the function <CODE
+CLASS="function"
+>WFile_nextRecord</CODE
+> will return a pointer to a valid WRecord object (the construction of the object is done inside the <CODE
+CLASS="function"
+>WFile_nextRecord</CODE
+>, and then it must be destroyed after usage) which may be manipulated by the WRecord class functions (described in the following sections). If it fails, it will return a NIL (NULL) value in all crash case.
+	</P
+><P
+>&#13;		With the <CODE
+CLASS="function"
+>WFile_nextRecord</CODE
+>, we can only read the WARC Record in a fifo order. If we read a WARC Record using it, we can not come back to directly. And when th file descrciptor of the WFile object reaches the end of th WARC file, the <CODE
+CLASS="function"
+>WFile_nextRecord</CODE
+> function will return a NULL value considering it as an error. However, the library provides a function called <CODE
+CLASS="function"
+>WFile_hasMoreRecords</CODE
+> that tests if it remains some WARC Records that can be read. Generally, we use the function <CODE
+CLASS="function"
+>WFile_nextRecord</CODE
+> in collaboration with the <CODE
+CLASS="function"
+>WFile_hasMoreRecord</CODE
+> function like shown in the example below. And if we want to come back to an already visited record, the library provides a function <CODE
+CLASS="function"
+>WFile_seek</CODE
+> that allows to seek an offset in the correspondin WARC file. Generally, the given offset have to be a valid WARC Record offset, else the reading operation will success (when reading from a bad offset, the <CODE
+CLASS="function"
+>WFile_nextRecord</CODE
+> will consider that it is on a corrupted WARC Record).
+	</P
+><DIV
+CLASS="example"
+><A
+NAME="AEN483"
+></A
+><P
+><B
+>Example 4-3.  Reading safetly the WARC Records of a WARC file opened with the WFile object <CODE
+CLASS="varname"
+>warcfile</CODE
+>
+	<A
+NAME="AEN486"
+HREF="#FTN.AEN486"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></B
+></P
+></DIV
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN488"
+>4.1.2. The registration of an extracted WARC Record in a WARC file<A
+NAME="AEN491"
+HREF="#FTN.AEN491"
+><SPAN
+CLASS="footnote"
+>[2]</SPAN
+></A
+></A
+></H2
+></DIV
+><FONT
+COLOR="RED"
+>&#13;	<P
+><B
+>Adding a WARC Record to a WARC file</B
+></P
+>
+	<P
+>&#13;	Now, if we want to archive a data in a WARC file, we simply have to fill a WRecord object with its parameters (see the WRecord filling section) and call the function <CODE
+CLASS="function"
+>WFile_storeRecord</CODE
+>. This function take two parameters:
+		<P
+></P
+><UL
+><LI
+STYLE="list-style-type: dash"
+><P
+>The pointer to the WFile object linked to the WARC file where we want to store the record.</P
+></LI
+><LI
+STYLE="list-style-type: dash"
+><P
+>The pointer to the WRecord object which was filled with the new WARC Record parameters and linked to the data file we want to archive.</P
+><LI
+STYLE="list-style-type: dash"
+></LI
+></LI
+></UL
+>
+	</P
+>
+	<P
+>&#13;	Before the new WARC Record is stored, the function <CODE
+CLASS="function"
+>WFile_storeRecord</CODE
+> will check if its fields are filled in conformity with the WARC Format. Then, the WARC Record will only be stored if all its mandatory fields are filled and if the other fields matches the WARC-Type of the WARC Record. If there is an additionnal or missing field w.r.t the WARC-Type, the storage operation is aborted and the <CODE
+CLASS="function"
+>WFile_storRecord</CODE
+> function will return an error.
+	<P
+>&#13;  
+  </P
+></P
+></FONT
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN631"
+>4.3.3. Get content block</A
+></H2
+><P
+>&#13;  We use callback principle to get the content block by calling two function like
+  this example
+  <DIV
+CLASS="example"
+><A
+NAME="AEN634"
+></A
+><P
+><B
+>Example 4-4.  Get data block </B
+></P
+><PRE
+CLASS="programlisting"
+>&#13;  w = bless (WFile, "file.warc", WARC_FILE_READER,
+             WARC_FILE_DETECTION_COMPRESSION, ".");
+  r = WFile_getNextRecords (w);
+  char env[100];
+  WFile_register (w, r, callback, (void *) env); 
+  WRecord_getContent (r);
+  </PRE
+></DIV
+>
+  </P
+><P
+>&#13;  The definition of <CODE
+CLASS="function"
+>callback</CODE
+> function is the responsibility of users however he must
+  respect this prototype.
+  <PRE
+CLASS="programlisting"
+>&#13;  warc_bool_t callback (void * env, const char* buff, const warc_u32_t size)
+  </PRE
+>
+  </P
+><P
+>&#13;  <CODE
+CLASS="parameter"
+> buff </CODE
+> is the content block and <CODE
+CLASS="parameter"
+>size</CODE
+> is his size. For displaying the block at the
+  screen. You can define function <CODE
+CLASS="function"
+>callback</CODE
+> like this:
+  <DIV
+CLASS="example"
+><A
+NAME="AEN644"
+></A
+><P
+><B
+>Example 4-5. Define callback function to display a data block into screen </B
+></P
+><PRE
+CLASS="programlisting"
+>&#13;  warc_bool_t callback (void * env, const char* buff, const warc_u32_t size) 
+      { 
+        UNUSED (env); 
+        if (size) 
+          { 
+            warc_u32_t  i = 0; 
+            while (i &#60; size) 
+              { 
+                fprintf (stdout, "%c", buff[i]); 
+                ++i; 
+              } 
+             fprintf (stdout, "\n"); 
+          } 
+
+        return (WARC_TRUE); 
+    } 
+
+  </PRE
+></DIV
+>
+  </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN647"
+>4.3.4. Set content block</A
+></H2
+><P
+>&#13;  If you want to create warc record  you ' ll be back to associate a data block to warc
+  record. For perform this. You can use function <CODE
+CLASS="function"
+>WRecord_setContentFromFileName</CODE
+>.
+  <PRE
+CLASS="programlisting"
+>&#13;  warc_bool_t WRecord_setContentFromFileName ( void * , const char )
+  </PRE
+>
+  </P
+><P
+>&#13;  This function takes as parameter the pointer to record and the name of file that
+  contains data block. It 's returns false if success true otherwise.
+  </P
+></DIV
+><DIV
+CLASS="sect2"
+><H2
+CLASS="sect2"
+><A
+NAME="AEN653"
+>4.3.5. Store record</A
+></H2
+><P
+>&#13;  Function WFile_storeRecord is used when you write a record in warc file it ' s
+  return false if success true otherwise.
+  <PRE
+CLASS="programlisting"
+>&#13;  WFile_storeRecord (void * w, void * r)
+  </PRE
+> 
+  </P
+><P
+>&#13;  This function takes parameter  a pointer to warc file object and pointer to                            
+  warc record object.
+  </P
+><P
+>&#13;  This source code shows how to create warc file in writer mode and store one record
+  in this warc file after fill header fields, anvl field and set content block.
+<P
+CLASS="literallayout"
+><br>
+We&nbsp;use&nbsp;as&nbsp;content&nbsp;block&nbsp;file&nbsp;<TT
+CLASS="filename"
+>"data"</TT
+>&nbsp;in&nbsp;current&nbsp;directory<br>
+</P
+>  
+  <DIV
+CLASS="example"
+><A
+NAME="AEN661"
+></A
+><P
+><B
+>Example 4-6.  Create warc file with one record </B
+></P
+><PRE
+CLASS="programlisting"
+>&#13;  #define makeS(s) ((warc_u8_t *) s), w_strlen((warc_u8_t *)(s))
+  #define makeU(s) (const warc_u8_t *) (s), (warc_u64_t) w_strlen((warc_u8_t *) (s))
+
+  void * w = bless (WFile, "file.warc", WARC_FILE_WRITER,
+               WARC_FILE_DETECTION_COMPRESSION, ".");
+  void *r = bless (WRecord);
+ 
+  WRecord_setTargetUri (r, makeS ("test://anunknownplace");
+  WRecord_setRecordType (r, WARC_RESOURCE_RECORD);  
+  WRecord_setDate (r, makeS ("2008-04-03T02:59:55Z"));
+  WRecord_setContentType (r, makeS("text/html"));
+  u = bless (WUUID); 
+  WUUID_hash (u, makeU ("record1://anunknownplace")); 
+  WRecord_setRecordId (r, makeS (WUUID_text (u))); 
+  destroy (u); 
+
+  WRecord_setContentFromFileName (r, "./data"); 
+  WRecord_addAnvl (r, makeS ("key1"), makeS ("val1")); 
+  WFile_storeRecord (w, r); 
+
+  destroy (r);
+  destroy (w);
+  </PRE
+></DIV
+>
+  </P
+><P
+>&#13;  You can see the usage of class wuuid to generate a unique name to field
+  <CODE
+CLASS="parameter"
+>WARC_RECORD_ID</CODE
+>.
+<P
+CLASS="literallayout"
+><br>
+<CODE
+CLASS="function"
+>WFile_storeRecord</CODE
+>&nbsp;is&nbsp;the&nbsp;last&nbsp;function&nbsp;to&nbsp;call.<br>
+</P
+>
+  </P
+></DIV
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN486"
+HREF="x415.html#AEN486"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><PRE
+CLASS="programlisting"
+>&#13;	void *  warcfile =  bless (WFile, "file.warc",0,
+           WARC_FILE_READER, WARC_FILE_DETECT_COMPRESSION, ".");
+	void * r = NIL;
+	
+	while (WFile_hasMoreRecord (warcfile))
+		{
+		r = WFile_nextRecord (warcfile);
+		
+		unless (r) /* testing if the read operation has passed well*/
+		/* some instructions */
+		
+		/*
+		
+		working with the record r
+		
+		*/
+		
+		destroy (r); /* destruction of the generated object */
+		}
+	/* end of program */
+	destroy (warcfile) /* destruction of the object warcfile */
+	</PRE
+></TD
+></TR
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN491"
+HREF="x415.html#AEN491"
+><SPAN
+CLASS="footnote"
+>[2]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>&#13;	When a WRecord object is created by the <CODE
+CLASS="function"
+>WFile_nextRecord</CODE
+>, the first thing that we may want to do with it is to recover the corresponding stored data block, and of course the library provides the necessary function to do this (see the section concerning the WRecord routines). But before we can access the data block of a WRecored object, we must register this last one to its origin WFile object. This will oblige the WRecord to be linked with its origin WFile (we may use the same WRecord object with several WFile objects) and we will never have the possiblity to use it to try thye extraction of data from another WARC file. The function which allows us to do that is <CODE
+CLASS="function"
+>WFile_register<FONT
+COLOR="RED"
+>. This function will have four parameters which are, in that order:
+	<P
+></P
+><UL
+><LI
+><P
+>The pointer to the corresponding WFile object.</P
+></LI
+><LI
+><P
+>The pointer to WRecord object we want to register.</P
+></LI
+><LI
+><P
+>The pointer to a callback function. This parameter is the most important because it is a function given by the user where he will write the code of the work he wants to perform with the data extracted from the WARC Record. This function will be automaticallay called by the WRecord when the data is reclaimed by the user. Hence, the user will never have directly an acces to the WARC file, it is the WFile object itself which will read the data from it gives it the user. The parameters of this callback function will be described in the WRecord data acces routine function called <CODE
+CLASS="function"
+>WRecord_getContent</CODE
+>.</P
+></LI
+><LI
+><P
+>The pointer to a user environnement structure. Porbably, the user will need the data of a WARC Record to fill some variables and structures. For this, he have to groupe them in a single structur and give the pointer of this last one as a parameter of the <CODE
+CLASS="function"
+>WFile_register</CODE
+>. When the callback function is called, this pointer is given as a parameter to it. Actually, the type of this pointer is <SPAN
+CLASS="type"
+>void *</SPAN
+>. It is for the user to do a casting (type change) on it to the wanted structure pointer type in such way that he will be able to use it.</P
+></LI
+></UL
+>
+	</FONT
+></CODE
+></P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="x351.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="x522.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Data types</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="c319.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+></TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

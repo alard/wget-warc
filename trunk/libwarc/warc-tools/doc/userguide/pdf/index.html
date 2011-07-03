@@ -1,0 +1,411 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN""http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+> warc-tools version 0.17  A library for data archiving </TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"><LINK
+REL="NEXT"
+TITLE=" introduction "
+HREF="c3.html"></HEAD
+><BODY
+CLASS="book"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><DIV
+CLASS="BOOK"
+><A
+NAME="AEN1"
+></A
+><DIV
+CLASS="TITLEPAGE"
+><H1
+CLASS="title"
+><A
+NAME="AEN1"
+>warc-tools version 0.17  A library for data archiving</A
+></H1
+><HR></DIV
+><DIV
+CLASS="TOC"
+><DL
+><DT
+><B
+>Table of Contents</B
+></DT
+><DT
+>1. <A
+HREF="c3.html"
+>introduction</A
+></DT
+><DT
+>2. <A
+HREF="c16.html"
+>How to use warc-tools</A
+></DT
+><DD
+><DL
+><DT
+>2.1. <A
+HREF="c16.html#AEN19"
+>NAME</A
+></DT
+><DT
+>2.2. <A
+HREF="x39.html"
+>SYNOPSIS</A
+></DT
+><DT
+>2.3. <A
+HREF="x59.html"
+>DESCRIPTION</A
+></DT
+><DT
+>2.4. <A
+HREF="x91.html"
+>OPTIONS</A
+></DT
+></DL
+></DD
+><DT
+>3. <A
+HREF="c126.html"
+>Detailed utilisation</A
+></DT
+><DD
+><DL
+><DT
+>3.1. <A
+HREF="c126.html#AEN129"
+>warcdump</A
+></DT
+><DT
+>3.2. <A
+HREF="x145.html"
+>arc2warc</A
+></DT
+><DT
+>3.3. <A
+HREF="x174.html"
+>warcfilter</A
+></DT
+><DT
+>3.4. <A
+HREF="x186.html"
+>warcvalidator</A
+></DT
+><DT
+>3.5. <A
+HREF="x206.html"
+>warcserver</A
+></DT
+><DT
+>3.6. <A
+HREF="x222.html"
+>warcclient</A
+></DT
+><DT
+>3.7. <A
+HREF="x287.html"
+>mod_apache</A
+></DT
+><DT
+>3.8. <A
+HREF="x300.html"
+>mod_lighttpd</A
+></DT
+></DL
+></DD
+><DT
+>4. <A
+HREF="c319.html"
+>Programming with the warc library</A
+></DT
+><DD
+><DL
+><DT
+>4.1. <A
+HREF="c319.html#AEN330"
+>Generalities</A
+></DT
+><DD
+><DL
+><DT
+>4.1.1. <A
+HREF="c319.html#AEN332"
+>Object-oriented concept</A
+></DT
+><DT
+>4.1.2. <A
+HREF="c319.html#AEN347"
+>The user interface</A
+></DT
+></DL
+></DD
+><DT
+>4.2. <A
+HREF="x351.html"
+>Data types</A
+></DT
+><DT
+>4.3. <A
+HREF="x415.html"
+>Creation and destruction of objects</A
+></DT
+><DD
+><DL
+><DT
+>4.3.1. <A
+HREF="x415.html#AEN417"
+>Creation and destrunction of WFile object</A
+></DT
+><DT
+>4.3.2. <A
+HREF="x415.html#AEN452"
+>Creation and destruction if a WRecord object</A
+></DT
+><DT
+>4.1. <A
+HREF="x415.html#AEN463"
+>WFile object routines</A
+></DT
+><DT
+>4.2. <A
+HREF="x522.html"
+></A
+></DT
+><DT
+>4.3.3. <A
+HREF="x415.html#AEN631"
+>Get content block</A
+></DT
+><DT
+>4.3.4. <A
+HREF="x415.html#AEN647"
+>Set content block</A
+></DT
+><DT
+>4.3.5. <A
+HREF="x415.html#AEN653"
+>Store record</A
+></DT
+></DL
+></DD
+><DT
+>4.4. <A
+HREF="x668.html"
+>arc file handling</A
+></DT
+></DL
+></DD
+></DL
+></DIV
+><DIV
+CLASS="LOT"
+><DL
+CLASS="LOT"
+><DT
+><B
+>List of Examples</B
+></DT
+><DT
+>3-1. <A
+HREF="c126.html#AEN135"
+>How to use warcdump command to get only the header.</A
+></DT
+><DT
+>3-2. <A
+HREF="c126.html#AEN140"
+>How to use warcdump command to get the header and the anvl fields.</A
+></DT
+><DT
+>3-3. <A
+HREF="x145.html#AEN154"
+>How to use the arc2warc command for the conversion of an ARC file into an uncompressed WARC file.</A
+></DT
+><DT
+>3-4. <A
+HREF="x145.html#AEN161"
+>How to use the arc2warc command for the conversion of an ARC file into a compressed WARC file.</A
+></DT
+><DT
+>3-5. <A
+HREF="x145.html#AEN169"
+>How to use arc2warc.sh command.</A
+></DT
+><DT
+>3-6. <A
+HREF="x174.html#AEN181"
+>How to use warcfilter command (usage of filter on WARC-Target-URI fields).</A
+></DT
+><DT
+>3-7. <A
+HREF="x186.html#AEN193"
+>How to use the warcvalidator command.</A
+></DT
+><DT
+>3-8. <A
+HREF="x186.html#AEN201"
+>How to use the warcvalidator.sh command.</A
+></DT
+><DT
+>3-9. <A
+HREF="x206.html#AEN217"
+>How to use the warcserver command.</A
+></DT
+><DT
+>3-10. <A
+HREF="x222.html#AEN246"
+>How to use the warcclient to get a WARC Record.</A
+></DT
+><DT
+>3-11. <A
+HREF="x222.html#AEN252"
+>How to use the warcclient to get a WARC file.</A
+></DT
+><DT
+>3-12. <A
+HREF="x222.html#AEN258"
+>How to use the warcclient to get a filtered WARC file.</A
+></DT
+><DT
+>3-13. <A
+HREF="x222.html#AEN265"
+>How to use warcclient to get the records list.</A
+></DT
+><DT
+>3-14. <A
+HREF="x222.html#AEN276"
+>How to use warcclient with lighttpd server using cgi module.</A
+></DT
+><DT
+>3-15. <A
+HREF="x222.html#AEN282"
+>How to use warcclient with lighttpd using fastcgi module.</A
+></DT
+><DT
+>3-16. <A
+HREF="x287.html#AEN295"
+>How to send a request to an apache 2 server with the browser using the the mod_warc module.</A
+></DT
+><DT
+>3-17. <A
+HREF="x300.html#AEN307"
+>How to send a request to a lighttpd server with a browser using warc.cgi script.</A
+></DT
+><DT
+>3-18. <A
+HREF="x300.html#AEN314"
+>How to send a request to a lighttpd server with a browser using the fastcgi.</A
+></DT
+><DT
+>4-1. <A
+HREF="x415.html#AEN438"
+>Creation of a WFile object in reading mode</A
+></DT
+><DT
+>4-2. <A
+HREF="x415.html#AEN444"
+>Creation of a WFile object in writing mode</A
+></DT
+><DT
+>4-3. <A
+HREF="x415.html#AEN483"
+>Reading safetly the WARC Records of a WARC file opened with the WFile object <CODE
+CLASS="varname"
+>warcfile</CODE
+>
+	<A
+NAME="AEN486"
+HREF="#FTN.AEN486"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></A
+></DT
+><DT
+>4-4. <A
+HREF="x415.html#AEN634"
+>Get data block</A
+></DT
+><DT
+>4-5. <A
+HREF="x415.html#AEN644"
+>Define callback function to display a data block into screen</A
+></DT
+><DT
+>4-6. <A
+HREF="x415.html#AEN661"
+>Create warc file with one record</A
+></DT
+><DT
+>4-7. <A
+HREF="x668.html#AEN674"
+>Extract header fields from arc file</A
+></DT
+><DT
+>4-8. <A
+HREF="x668.html#AEN684"
+>Convert arc file to warc file</A
+></DT
+></DL
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="c3.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>introduction</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

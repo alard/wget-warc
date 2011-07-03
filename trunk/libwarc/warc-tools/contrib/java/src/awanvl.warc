@@ -1,0 +1,1405 @@
+WARC/0.17
+WARC-Type:warcinfo
+WARC-Record-ID:uuid:8389D026ABDC89F92D4EC5D395D1A0A4C7ADAF1DE7506ACB
+WARC-Date:2008-04-03T02:59:55Z
+Content-Length:9739
+Content-Type:Text/random
+WARC-Block-Digest:sha1:0451-9645-AM35P-12LL
+WARC-Payload-Digest:sha2:0121-KJ45-1111-A001L
+WARC-Truncated:time
+WARC-Warcinfo-ID:infuuid://id0:warc-x000sl076
+WARC-Filename:/home/user/warcfile.warc
+WARC-Profile:Compressed:gzip:best speed
+WARC-Identified-Payload-Type:text/html; charset=unicode-utf8
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head><!--Time-stamp: <2007-07-13 15:25:45 poser> -->
+
+
+   <meta http-equiv="Content-Type" content="text/html; charset=ascii">
+   <meta name="Author" content="Bill Poser">
+<link rel="stylesheet" type="text/css" href="unidesc_fichiers/bp.css" media="all"><title>Unicode Utilities</title></head><body>
+<center><h1>Unicode Utilities</h1></center>
+
+
+<h2>Description</h2>
+<p>
+This package consists of a set of programs for manipulating and analyzing Unicode text.
+The analysis utilities are useful when working with Unicode files when one doesn't
+know the writing system, doesn't have the necessary font, needs to inspect invisible characters,
+needs to find out whether characters have been combined or in what order they occur,
+or needs statistics on which characters occur.
+</p>
+
+<h3>Uniname</h3>
+<p>
+<em>uniname</em> defaults to printing the character offset of each character, its byte offset,
+its hex code value, its encoding, the glyph itself, and its name.
+Command line options allow undesired information to be suppressed and the Unicode range
+to be added. Other options permit a specified number of bytes or characters to be skipped.
+For example, the default output for this text:
+</p>
+<center>
+<img src="unidesc_fichiers/uninamex.jpg" alt="Some Japanese text" border="2" width="200">
+</center>
+<br>
+is this:
+<br>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>character  byte       UTF-32   encoded as     glyph   name
+        0          0  003053   E3 81 93       &#8218;±      HIRAGANA LETTER KO
+        1          3  00308C   E3 82 8C       &#8218;ê      HIRAGANA LETTER RE
+        2          6  00306F   E3 81 AF       &#8218;Í      HIRAGANA LETTER HA
+        3          9  0065E5   E6 97 A5       &#8220;ú      CJK character Nelson 2097
+        4         12  00672C   E6 9C AC       &#8211;{      CJK character Nelson   96
+        5         15  008A9E   E8 AA 9E       &#338;ê      CJK character Nelson 4374
+        6         18  003067   E3 81 A7       &#8218;Å      HIRAGANA LETTER DE
+        7         21  003059   E3 81 99       &#8218;·      HIRAGANA LETTER SU
+        8         24  003002   E3 80 82       &#129;B      IDEOGRAPHIC FULL STOP
+</pre>
+</td></tr>
+</tbody></table>
+</center>
+<p>
+<em>uniname</em> may also be used to validate UTF-8 input. In this case it reports
+the first invalid UTF-8 that it encounters, explains why it is invalid, and exits.
+</p>
+
+<h3>Unidesc</h3>
+
+<p>
+<em>unidesc</em> reports the character ranges to which different
+portions of the text belong. It can also be used to identify Unicode encodings
+(e.g. UTF-16be) flagged by magic numbers. Here is the output when given
+the above Japanese text as input:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>       0	       2	Hiragana
+       3	       5	CJK Unified Ideographs
+       6	       7	Hiragana
+       8	       9	CJK Symbols and Punctuation
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>Unihist</h3>
+
+<p>
+<em>unihist</em> generates a histogram of the characters in its input, which must be encoded
+in UTF-8 Unicode. By default, for each character it prints the frequency of the
+character as a percentage of the total, the absolute number of tokens in the input,
+the UTF-32 code in  hexadecimal, and, if the character is displayable, the glyph itself
+as UTF-8 Unicode. Command line flags allow unwanted information to be suppressed.
+In particular, note that by suppressing the percentages and counts it is possible
+to generate a list of the unique characters in the input. 
+</p>
+<p>
+Here is a portion of the histogram for an Armenian text:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>	  0.930	   2,599	0x00057E	&#1406;
+	  1.637	   4,574	0x00057F	&#1407;
+	  2.983	   8,332	0x000580	&#1408;
+	  0.720	   2,010	0x000581	&#1409;
+	  1.655	   4,622	0x000582	&#1410;
+	  0.312	     872	0x000583	&#1411;
+	  0.441	   1,232	0x000584	&#1412;
+	  0.130	     362	0x000585	&#1413;
+	  0.147	     412	0x000586	&#1414;
+	  0.000	       1	0x002026	&#129;c
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>ExplicateUTF8</h3>
+<p>
+<em>ExplicateUTF8</em> is intended for debugging or for learning about Unicode.
+It determines and explains the validity of a sequence of bytes as a UTF8 encoding.
+Here is the output when given the above Japanese text as input:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>The sequence 0xE3     0x81     0x93    
+             11100011 10000001 10010011 
+is a valid UTF-8 character encoding equivalent to UTF32 0x00003053.
+The first byte tells us that there should be 2
+continuation bytes since it begins with 3 contiguous 1s.
+There are 2 following bytes and all are valid
+continuation bytes since they all have high bits 10.
+The first byte contributes its low 4 bits.
+The remaining bytes each contribute their low 6 bits,
+for a total of 16 bits: 0011 000001 010011 
+This is padded to 32 places with 16 zeros: 00000000000000000011000001010011
+                                           0   0   0   0   3   0   5   3
+</pre>
+</td></tr></tbody></table></center>
+<p>
+And here is the output when given as input the same file with the first byte removed:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>The first byte, value 0x81, with bit pattern 10000001,
+is not a valid first byte of a UTF-8
+sequence because its high bits are 10.
+A valid first byte must be of the form 0nnnnnnn or 11nnnnnn.
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>Utf8lookup</h3>
+<p>
+<i>Utf8lookup</i> is a shell script which invokes <i>uniname</i> to
+provide an easy way to look up the character name corresponding to a
+codepoint from the command line. In addition to <i>uniname</i>
+it requires the utility <a href="http://billposer.org/Software/a2b.html">Ascii2binary</a>.
+</p>
+<p>
+For example, the command:
+</p>
+<pre>utf8lookup 1254
+</pre>
+will produce the output:
+<pre>001254  ETHIOPIC SYLLABLE QHEE
+</pre>
+
+<h3>Unirev</h3>
+<p>
+<i>Unirev</i> is a filter that reverses UTF-8 strings character-by-character (as opposed
+to byte-by-byte). This is useful when dealing with text that is not encoded in the
+order in which you want to display it or analyze it. For example, if you want to display
+Arabic on a terminal window that does not support bidi text, Unirev will put it into
+the normal display order. 
+</p>
+<p>
+For example, Unirev will convert this:
+</p>
+&nbsp;&nbsp;&nbsp;abcde<br>
+&nbsp;&nbsp;&nbsp;&#54620;&#44397;&#47568;<br>
+&nbsp;&nbsp;&nbsp;&#20116;&#21313;&#19971;
+<p>
+into this:
+</p>
+&nbsp;&nbsp;&nbsp;edcba<br>
+&nbsp;&nbsp;&nbsp;&#47568;&#44397;&#54620;<br>
+&nbsp;&nbsp;&nbsp;&#19971;&#21313;&#20116;
+
+<h2>Details</h2>
+
+<table cellspacing="3">
+<tbody>
+<tr><td>Language</td><td>C</td></tr>
+<tr><td>Environment</td><td>POSIX</td></tr>
+<tr><td>Current version</td><td>2.25</td></tr>
+<tr><td>Last modified</td><td>2007-06-30</td><td><p>
+</p><dt>
+</dt>
+<dd>
+</dd>
+</td></tr>
+<tr><td>License</td><td>GNU General Public License, Version 2</td></tr>
+</tbody></table>
+
+<h2>Download Source</h2>
+<ul>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.tar.gz">uniutils-2.25.tar.gz</a></li>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.tar.bz2">uniutils-2.25.tar.bz2</a></li>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.zip">uniutils.2-25.zip</a></li>
+</ul>
+<p>
+Packages:
+</p>
+<p>
+<a href="http://packages.debian.org/unstable/source/uniutils">Debian (unstable)</a>
+</p><p>
+<a href="http://www.freebsd.org/cgi/cvsweb.cgi/ports/sysutils/unidesc">FreeBSD port</a>
+</p>
+<p>
+<a href="http://www.freshports.org/sysutils/unidesc">FreeBSD Freshport</a>
+</p>
+<p>
+<a href="http://linux01.gwdg.de/%7Epbleser/rpm-navigation.php?cat=Utilities/unidesc/">SUSE Linux RPMs</a>
+</p>
+
+<p>
+If you would like to be notified of new releases,
+subscribe to <a href="http://freshmeat.net/projects/uniutils">uniutils</a>
+at <a href="http://freshmeat.net/">Freshmeat</a>.
+</p>
+
+<br>
+
+<h2><a name="changelog">Changes</a></h2>
+<dl>
+<dt>Version 2.25</dt>
+<dd>Adds to <i>unidesc</i> the option <i>-r</i> which causes it to list the ranges
+detected after reading all input rather than listing them as they are encountered,
+and adds to <i>uniname</i> the option <i>-B</i> which causes it to ignore characters
+within the Basic Multilingual Plane.
+</dd>
+<dt>Version 2.24</dt>
+<dd>Adds the utility <i>Unirev</i>, a filter which reverses UTF-8 strings.</dd>
+<dt>Version 2.23</dt>
+<dd><i>uniname</i> and <i>unidesc</i> now provide information about the
+unofficial ranges within the
+Private Use Area registered with the <a href="http://www.evertype.com/standards/csur/">ConScript Unicode Registry</a>.</dd>
+</dl>
+<br>
+<a href="http://www.billposer.org/Software/UnidescChangeLog.html">Full Change Log</a>
+<br>
+<br>
+<br>
+<center>
+<script type="text/javascript"><!--
+google_ad_client = "pub-0356924698057781";
+google_ad_width = 468;
+google_ad_height = 60;
+google_ad_format = "468x60_as";
+google_ad_type = "text_image";
+google_ad_channel = "";
+google_color_border = "38B63C";
+google_color_bg = "C3D9FF";
+google_color_link = "0000FF";
+google_color_text = "000000";
+google_color_url = "008000";
+//--></script>
+<script type="text/javascript" src="unidesc_fichiers/show_ads.js">
+</script><iframe name="google_ads_frame" src="unidesc_fichiers/ads.html" marginwidth="0" marginheight="0" vspace="0" hspace="0" allowtransparency="true" frameborder="0" height="60" scrolling="no" width="468"></iframe>
+
+</center>
+<br>
+<center>
+<a href="http://billposer.org/software.html">Back to Bill Poser's software page.</a>
+</center>
+<br>
+
+</body></html>
+
+WARC/0.17
+WARC-Type:warcinfo
+WARC-Record-ID:uuid:8389D026ABDC89F92D4EC5D395D1A0A4C7ADAF1DE7506ACB
+WARC-Date:2008-04-03T02:59:55Z
+Content-Length:9739
+Content-Type:Text/random
+WARC-Block-Digest:sha1:0451-9645-AM35P-12LL
+WARC-Payload-Digest:sha2:0121-KJ45-1111-A001L
+WARC-Truncated:time
+WARC-Warcinfo-ID:infuuid://id0:warc-x000sl076
+WARC-Filename:/home/user/warcfile.warc
+WARC-Profile:Compressed:gzip:best speed
+WARC-Identified-Payload-Type:text/html; charset=unicode-utf8
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head><!--Time-stamp: <2007-07-13 15:25:45 poser> -->
+
+
+   <meta http-equiv="Content-Type" content="text/html; charset=ascii">
+   <meta name="Author" content="Bill Poser">
+<link rel="stylesheet" type="text/css" href="unidesc_fichiers/bp.css" media="all"><title>Unicode Utilities</title></head><body>
+<center><h1>Unicode Utilities</h1></center>
+
+
+<h2>Description</h2>
+<p>
+This package consists of a set of programs for manipulating and analyzing Unicode text.
+The analysis utilities are useful when working with Unicode files when one doesn't
+know the writing system, doesn't have the necessary font, needs to inspect invisible characters,
+needs to find out whether characters have been combined or in what order they occur,
+or needs statistics on which characters occur.
+</p>
+
+<h3>Uniname</h3>
+<p>
+<em>uniname</em> defaults to printing the character offset of each character, its byte offset,
+its hex code value, its encoding, the glyph itself, and its name.
+Command line options allow undesired information to be suppressed and the Unicode range
+to be added. Other options permit a specified number of bytes or characters to be skipped.
+For example, the default output for this text:
+</p>
+<center>
+<img src="unidesc_fichiers/uninamex.jpg" alt="Some Japanese text" border="2" width="200">
+</center>
+<br>
+is this:
+<br>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>character  byte       UTF-32   encoded as     glyph   name
+        0          0  003053   E3 81 93       &#8218;±      HIRAGANA LETTER KO
+        1          3  00308C   E3 82 8C       &#8218;ê      HIRAGANA LETTER RE
+        2          6  00306F   E3 81 AF       &#8218;Í      HIRAGANA LETTER HA
+        3          9  0065E5   E6 97 A5       &#8220;ú      CJK character Nelson 2097
+        4         12  00672C   E6 9C AC       &#8211;{      CJK character Nelson   96
+        5         15  008A9E   E8 AA 9E       &#338;ê      CJK character Nelson 4374
+        6         18  003067   E3 81 A7       &#8218;Å      HIRAGANA LETTER DE
+        7         21  003059   E3 81 99       &#8218;·      HIRAGANA LETTER SU
+        8         24  003002   E3 80 82       &#129;B      IDEOGRAPHIC FULL STOP
+</pre>
+</td></tr>
+</tbody></table>
+</center>
+<p>
+<em>uniname</em> may also be used to validate UTF-8 input. In this case it reports
+the first invalid UTF-8 that it encounters, explains why it is invalid, and exits.
+</p>
+
+<h3>Unidesc</h3>
+
+<p>
+<em>unidesc</em> reports the character ranges to which different
+portions of the text belong. It can also be used to identify Unicode encodings
+(e.g. UTF-16be) flagged by magic numbers. Here is the output when given
+the above Japanese text as input:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>       0	       2	Hiragana
+       3	       5	CJK Unified Ideographs
+       6	       7	Hiragana
+       8	       9	CJK Symbols and Punctuation
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>Unihist</h3>
+
+<p>
+<em>unihist</em> generates a histogram of the characters in its input, which must be encoded
+in UTF-8 Unicode. By default, for each character it prints the frequency of the
+character as a percentage of the total, the absolute number of tokens in the input,
+the UTF-32 code in  hexadecimal, and, if the character is displayable, the glyph itself
+as UTF-8 Unicode. Command line flags allow unwanted information to be suppressed.
+In particular, note that by suppressing the percentages and counts it is possible
+to generate a list of the unique characters in the input. 
+</p>
+<p>
+Here is a portion of the histogram for an Armenian text:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>	  0.930	   2,599	0x00057E	&#1406;
+	  1.637	   4,574	0x00057F	&#1407;
+	  2.983	   8,332	0x000580	&#1408;
+	  0.720	   2,010	0x000581	&#1409;
+	  1.655	   4,622	0x000582	&#1410;
+	  0.312	     872	0x000583	&#1411;
+	  0.441	   1,232	0x000584	&#1412;
+	  0.130	     362	0x000585	&#1413;
+	  0.147	     412	0x000586	&#1414;
+	  0.000	       1	0x002026	&#129;c
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>ExplicateUTF8</h3>
+<p>
+<em>ExplicateUTF8</em> is intended for debugging or for learning about Unicode.
+It determines and explains the validity of a sequence of bytes as a UTF8 encoding.
+Here is the output when given the above Japanese text as input:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>The sequence 0xE3     0x81     0x93    
+             11100011 10000001 10010011 
+is a valid UTF-8 character encoding equivalent to UTF32 0x00003053.
+The first byte tells us that there should be 2
+continuation bytes since it begins with 3 contiguous 1s.
+There are 2 following bytes and all are valid
+continuation bytes since they all have high bits 10.
+The first byte contributes its low 4 bits.
+The remaining bytes each contribute their low 6 bits,
+for a total of 16 bits: 0011 000001 010011 
+This is padded to 32 places with 16 zeros: 00000000000000000011000001010011
+                                           0   0   0   0   3   0   5   3
+</pre>
+</td></tr></tbody></table></center>
+<p>
+And here is the output when given as input the same file with the first byte removed:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>The first byte, value 0x81, with bit pattern 10000001,
+is not a valid first byte of a UTF-8
+sequence because its high bits are 10.
+A valid first byte must be of the form 0nnnnnnn or 11nnnnnn.
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>Utf8lookup</h3>
+<p>
+<i>Utf8lookup</i> is a shell script which invokes <i>uniname</i> to
+provide an easy way to look up the character name corresponding to a
+codepoint from the command line. In addition to <i>uniname</i>
+it requires the utility <a href="http://billposer.org/Software/a2b.html">Ascii2binary</a>.
+</p>
+<p>
+For example, the command:
+</p>
+<pre>utf8lookup 1254
+</pre>
+will produce the output:
+<pre>001254  ETHIOPIC SYLLABLE QHEE
+</pre>
+
+<h3>Unirev</h3>
+<p>
+<i>Unirev</i> is a filter that reverses UTF-8 strings character-by-character (as opposed
+to byte-by-byte). This is useful when dealing with text that is not encoded in the
+order in which you want to display it or analyze it. For example, if you want to display
+Arabic on a terminal window that does not support bidi text, Unirev will put it into
+the normal display order. 
+</p>
+<p>
+For example, Unirev will convert this:
+</p>
+&nbsp;&nbsp;&nbsp;abcde<br>
+&nbsp;&nbsp;&nbsp;&#54620;&#44397;&#47568;<br>
+&nbsp;&nbsp;&nbsp;&#20116;&#21313;&#19971;
+<p>
+into this:
+</p>
+&nbsp;&nbsp;&nbsp;edcba<br>
+&nbsp;&nbsp;&nbsp;&#47568;&#44397;&#54620;<br>
+&nbsp;&nbsp;&nbsp;&#19971;&#21313;&#20116;
+
+<h2>Details</h2>
+
+<table cellspacing="3">
+<tbody>
+<tr><td>Language</td><td>C</td></tr>
+<tr><td>Environment</td><td>POSIX</td></tr>
+<tr><td>Current version</td><td>2.25</td></tr>
+<tr><td>Last modified</td><td>2007-06-30</td><td><p>
+</p><dt>
+</dt>
+<dd>
+</dd>
+</td></tr>
+<tr><td>License</td><td>GNU General Public License, Version 2</td></tr>
+</tbody></table>
+
+<h2>Download Source</h2>
+<ul>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.tar.gz">uniutils-2.25.tar.gz</a></li>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.tar.bz2">uniutils-2.25.tar.bz2</a></li>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.zip">uniutils.2-25.zip</a></li>
+</ul>
+<p>
+Packages:
+</p>
+<p>
+<a href="http://packages.debian.org/unstable/source/uniutils">Debian (unstable)</a>
+</p><p>
+<a href="http://www.freebsd.org/cgi/cvsweb.cgi/ports/sysutils/unidesc">FreeBSD port</a>
+</p>
+<p>
+<a href="http://www.freshports.org/sysutils/unidesc">FreeBSD Freshport</a>
+</p>
+<p>
+<a href="http://linux01.gwdg.de/%7Epbleser/rpm-navigation.php?cat=Utilities/unidesc/">SUSE Linux RPMs</a>
+</p>
+
+<p>
+If you would like to be notified of new releases,
+subscribe to <a href="http://freshmeat.net/projects/uniutils">uniutils</a>
+at <a href="http://freshmeat.net/">Freshmeat</a>.
+</p>
+
+<br>
+
+<h2><a name="changelog">Changes</a></h2>
+<dl>
+<dt>Version 2.25</dt>
+<dd>Adds to <i>unidesc</i> the option <i>-r</i> which causes it to list the ranges
+detected after reading all input rather than listing them as they are encountered,
+and adds to <i>uniname</i> the option <i>-B</i> which causes it to ignore characters
+within the Basic Multilingual Plane.
+</dd>
+<dt>Version 2.24</dt>
+<dd>Adds the utility <i>Unirev</i>, a filter which reverses UTF-8 strings.</dd>
+<dt>Version 2.23</dt>
+<dd><i>uniname</i> and <i>unidesc</i> now provide information about the
+unofficial ranges within the
+Private Use Area registered with the <a href="http://www.evertype.com/standards/csur/">ConScript Unicode Registry</a>.</dd>
+</dl>
+<br>
+<a href="http://www.billposer.org/Software/UnidescChangeLog.html">Full Change Log</a>
+<br>
+<br>
+<br>
+<center>
+<script type="text/javascript"><!--
+google_ad_client = "pub-0356924698057781";
+google_ad_width = 468;
+google_ad_height = 60;
+google_ad_format = "468x60_as";
+google_ad_type = "text_image";
+google_ad_channel = "";
+google_color_border = "38B63C";
+google_color_bg = "C3D9FF";
+google_color_link = "0000FF";
+google_color_text = "000000";
+google_color_url = "008000";
+//--></script>
+<script type="text/javascript" src="unidesc_fichiers/show_ads.js">
+</script><iframe name="google_ads_frame" src="unidesc_fichiers/ads.html" marginwidth="0" marginheight="0" vspace="0" hspace="0" allowtransparency="true" frameborder="0" height="60" scrolling="no" width="468"></iframe>
+
+</center>
+<br>
+<center>
+<a href="http://billposer.org/software.html">Back to Bill Poser's software page.</a>
+</center>
+<br>
+
+</body></html>
+
+WARC/0.17
+WARC-Type:warcinfo
+WARC-Record-ID:uuid:8389D026ABDC89F92D4EC5D395D1A0A4C7ADAF1DE7506ACB
+WARC-Date:2008-04-03T02:59:55Z
+Content-Length:9739
+Content-Type:Text/random
+WARC-Block-Digest:sha1:0451-9645-AM35P-12LL
+WARC-Payload-Digest:sha2:0121-KJ45-1111-A001L
+WARC-Truncated:time
+WARC-Warcinfo-ID:infuuid://id0:warc-x000sl076
+WARC-Filename:/home/user/warcfile.warc
+WARC-Profile:Compressed:gzip:best speed
+WARC-Identified-Payload-Type:text/html; charset=unicode-utf8
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head><!--Time-stamp: <2007-07-13 15:25:45 poser> -->
+
+
+   <meta http-equiv="Content-Type" content="text/html; charset=ascii">
+   <meta name="Author" content="Bill Poser">
+<link rel="stylesheet" type="text/css" href="unidesc_fichiers/bp.css" media="all"><title>Unicode Utilities</title></head><body>
+<center><h1>Unicode Utilities</h1></center>
+
+
+<h2>Description</h2>
+<p>
+This package consists of a set of programs for manipulating and analyzing Unicode text.
+The analysis utilities are useful when working with Unicode files when one doesn't
+know the writing system, doesn't have the necessary font, needs to inspect invisible characters,
+needs to find out whether characters have been combined or in what order they occur,
+or needs statistics on which characters occur.
+</p>
+
+<h3>Uniname</h3>
+<p>
+<em>uniname</em> defaults to printing the character offset of each character, its byte offset,
+its hex code value, its encoding, the glyph itself, and its name.
+Command line options allow undesired information to be suppressed and the Unicode range
+to be added. Other options permit a specified number of bytes or characters to be skipped.
+For example, the default output for this text:
+</p>
+<center>
+<img src="unidesc_fichiers/uninamex.jpg" alt="Some Japanese text" border="2" width="200">
+</center>
+<br>
+is this:
+<br>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>character  byte       UTF-32   encoded as     glyph   name
+        0          0  003053   E3 81 93       &#8218;±      HIRAGANA LETTER KO
+        1          3  00308C   E3 82 8C       &#8218;ê      HIRAGANA LETTER RE
+        2          6  00306F   E3 81 AF       &#8218;Í      HIRAGANA LETTER HA
+        3          9  0065E5   E6 97 A5       &#8220;ú      CJK character Nelson 2097
+        4         12  00672C   E6 9C AC       &#8211;{      CJK character Nelson   96
+        5         15  008A9E   E8 AA 9E       &#338;ê      CJK character Nelson 4374
+        6         18  003067   E3 81 A7       &#8218;Å      HIRAGANA LETTER DE
+        7         21  003059   E3 81 99       &#8218;·      HIRAGANA LETTER SU
+        8         24  003002   E3 80 82       &#129;B      IDEOGRAPHIC FULL STOP
+</pre>
+</td></tr>
+</tbody></table>
+</center>
+<p>
+<em>uniname</em> may also be used to validate UTF-8 input. In this case it reports
+the first invalid UTF-8 that it encounters, explains why it is invalid, and exits.
+</p>
+
+<h3>Unidesc</h3>
+
+<p>
+<em>unidesc</em> reports the character ranges to which different
+portions of the text belong. It can also be used to identify Unicode encodings
+(e.g. UTF-16be) flagged by magic numbers. Here is the output when given
+the above Japanese text as input:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>       0	       2	Hiragana
+       3	       5	CJK Unified Ideographs
+       6	       7	Hiragana
+       8	       9	CJK Symbols and Punctuation
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>Unihist</h3>
+
+<p>
+<em>unihist</em> generates a histogram of the characters in its input, which must be encoded
+in UTF-8 Unicode. By default, for each character it prints the frequency of the
+character as a percentage of the total, the absolute number of tokens in the input,
+the UTF-32 code in  hexadecimal, and, if the character is displayable, the glyph itself
+as UTF-8 Unicode. Command line flags allow unwanted information to be suppressed.
+In particular, note that by suppressing the percentages and counts it is possible
+to generate a list of the unique characters in the input. 
+</p>
+<p>
+Here is a portion of the histogram for an Armenian text:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>	  0.930	   2,599	0x00057E	&#1406;
+	  1.637	   4,574	0x00057F	&#1407;
+	  2.983	   8,332	0x000580	&#1408;
+	  0.720	   2,010	0x000581	&#1409;
+	  1.655	   4,622	0x000582	&#1410;
+	  0.312	     872	0x000583	&#1411;
+	  0.441	   1,232	0x000584	&#1412;
+	  0.130	     362	0x000585	&#1413;
+	  0.147	     412	0x000586	&#1414;
+	  0.000	       1	0x002026	&#129;c
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>ExplicateUTF8</h3>
+<p>
+<em>ExplicateUTF8</em> is intended for debugging or for learning about Unicode.
+It determines and explains the validity of a sequence of bytes as a UTF8 encoding.
+Here is the output when given the above Japanese text as input:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>The sequence 0xE3     0x81     0x93    
+             11100011 10000001 10010011 
+is a valid UTF-8 character encoding equivalent to UTF32 0x00003053.
+The first byte tells us that there should be 2
+continuation bytes since it begins with 3 contiguous 1s.
+There are 2 following bytes and all are valid
+continuation bytes since they all have high bits 10.
+The first byte contributes its low 4 bits.
+The remaining bytes each contribute their low 6 bits,
+for a total of 16 bits: 0011 000001 010011 
+This is padded to 32 places with 16 zeros: 00000000000000000011000001010011
+                                           0   0   0   0   3   0   5   3
+</pre>
+</td></tr></tbody></table></center>
+<p>
+And here is the output when given as input the same file with the first byte removed:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>The first byte, value 0x81, with bit pattern 10000001,
+is not a valid first byte of a UTF-8
+sequence because its high bits are 10.
+A valid first byte must be of the form 0nnnnnnn or 11nnnnnn.
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>Utf8lookup</h3>
+<p>
+<i>Utf8lookup</i> is a shell script which invokes <i>uniname</i> to
+provide an easy way to look up the character name corresponding to a
+codepoint from the command line. In addition to <i>uniname</i>
+it requires the utility <a href="http://billposer.org/Software/a2b.html">Ascii2binary</a>.
+</p>
+<p>
+For example, the command:
+</p>
+<pre>utf8lookup 1254
+</pre>
+will produce the output:
+<pre>001254  ETHIOPIC SYLLABLE QHEE
+</pre>
+
+<h3>Unirev</h3>
+<p>
+<i>Unirev</i> is a filter that reverses UTF-8 strings character-by-character (as opposed
+to byte-by-byte). This is useful when dealing with text that is not encoded in the
+order in which you want to display it or analyze it. For example, if you want to display
+Arabic on a terminal window that does not support bidi text, Unirev will put it into
+the normal display order. 
+</p>
+<p>
+For example, Unirev will convert this:
+</p>
+&nbsp;&nbsp;&nbsp;abcde<br>
+&nbsp;&nbsp;&nbsp;&#54620;&#44397;&#47568;<br>
+&nbsp;&nbsp;&nbsp;&#20116;&#21313;&#19971;
+<p>
+into this:
+</p>
+&nbsp;&nbsp;&nbsp;edcba<br>
+&nbsp;&nbsp;&nbsp;&#47568;&#44397;&#54620;<br>
+&nbsp;&nbsp;&nbsp;&#19971;&#21313;&#20116;
+
+<h2>Details</h2>
+
+<table cellspacing="3">
+<tbody>
+<tr><td>Language</td><td>C</td></tr>
+<tr><td>Environment</td><td>POSIX</td></tr>
+<tr><td>Current version</td><td>2.25</td></tr>
+<tr><td>Last modified</td><td>2007-06-30</td><td><p>
+</p><dt>
+</dt>
+<dd>
+</dd>
+</td></tr>
+<tr><td>License</td><td>GNU General Public License, Version 2</td></tr>
+</tbody></table>
+
+<h2>Download Source</h2>
+<ul>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.tar.gz">uniutils-2.25.tar.gz</a></li>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.tar.bz2">uniutils-2.25.tar.bz2</a></li>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.zip">uniutils.2-25.zip</a></li>
+</ul>
+<p>
+Packages:
+</p>
+<p>
+<a href="http://packages.debian.org/unstable/source/uniutils">Debian (unstable)</a>
+</p><p>
+<a href="http://www.freebsd.org/cgi/cvsweb.cgi/ports/sysutils/unidesc">FreeBSD port</a>
+</p>
+<p>
+<a href="http://www.freshports.org/sysutils/unidesc">FreeBSD Freshport</a>
+</p>
+<p>
+<a href="http://linux01.gwdg.de/%7Epbleser/rpm-navigation.php?cat=Utilities/unidesc/">SUSE Linux RPMs</a>
+</p>
+
+<p>
+If you would like to be notified of new releases,
+subscribe to <a href="http://freshmeat.net/projects/uniutils">uniutils</a>
+at <a href="http://freshmeat.net/">Freshmeat</a>.
+</p>
+
+<br>
+
+<h2><a name="changelog">Changes</a></h2>
+<dl>
+<dt>Version 2.25</dt>
+<dd>Adds to <i>unidesc</i> the option <i>-r</i> which causes it to list the ranges
+detected after reading all input rather than listing them as they are encountered,
+and adds to <i>uniname</i> the option <i>-B</i> which causes it to ignore characters
+within the Basic Multilingual Plane.
+</dd>
+<dt>Version 2.24</dt>
+<dd>Adds the utility <i>Unirev</i>, a filter which reverses UTF-8 strings.</dd>
+<dt>Version 2.23</dt>
+<dd><i>uniname</i> and <i>unidesc</i> now provide information about the
+unofficial ranges within the
+Private Use Area registered with the <a href="http://www.evertype.com/standards/csur/">ConScript Unicode Registry</a>.</dd>
+</dl>
+<br>
+<a href="http://www.billposer.org/Software/UnidescChangeLog.html">Full Change Log</a>
+<br>
+<br>
+<br>
+<center>
+<script type="text/javascript"><!--
+google_ad_client = "pub-0356924698057781";
+google_ad_width = 468;
+google_ad_height = 60;
+google_ad_format = "468x60_as";
+google_ad_type = "text_image";
+google_ad_channel = "";
+google_color_border = "38B63C";
+google_color_bg = "C3D9FF";
+google_color_link = "0000FF";
+google_color_text = "000000";
+google_color_url = "008000";
+//--></script>
+<script type="text/javascript" src="unidesc_fichiers/show_ads.js">
+</script><iframe name="google_ads_frame" src="unidesc_fichiers/ads.html" marginwidth="0" marginheight="0" vspace="0" hspace="0" allowtransparency="true" frameborder="0" height="60" scrolling="no" width="468"></iframe>
+
+</center>
+<br>
+<center>
+<a href="http://billposer.org/software.html">Back to Bill Poser's software page.</a>
+</center>
+<br>
+
+</body></html>
+
+WARC/0.17
+WARC-Type:warcinfo
+WARC-Record-ID:uuid:8389D026ABDC89F92D4EC5D395D1A0A4C7ADAF1DE7506ACB
+WARC-Date:2008-04-03T02:59:55Z
+Content-Length:9739
+Content-Type:Text/random
+WARC-Block-Digest:sha1:0451-9645-AM35P-12LL
+WARC-Payload-Digest:sha2:0121-KJ45-1111-A001L
+WARC-Truncated:time
+WARC-Warcinfo-ID:infuuid://id0:warc-x000sl076
+WARC-Filename:/home/user/warcfile.warc
+WARC-Profile:Compressed:gzip:best speed
+WARC-Identified-Payload-Type:text/html; charset=unicode-utf8
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head><!--Time-stamp: <2007-07-13 15:25:45 poser> -->
+
+
+   <meta http-equiv="Content-Type" content="text/html; charset=ascii">
+   <meta name="Author" content="Bill Poser">
+<link rel="stylesheet" type="text/css" href="unidesc_fichiers/bp.css" media="all"><title>Unicode Utilities</title></head><body>
+<center><h1>Unicode Utilities</h1></center>
+
+
+<h2>Description</h2>
+<p>
+This package consists of a set of programs for manipulating and analyzing Unicode text.
+The analysis utilities are useful when working with Unicode files when one doesn't
+know the writing system, doesn't have the necessary font, needs to inspect invisible characters,
+needs to find out whether characters have been combined or in what order they occur,
+or needs statistics on which characters occur.
+</p>
+
+<h3>Uniname</h3>
+<p>
+<em>uniname</em> defaults to printing the character offset of each character, its byte offset,
+its hex code value, its encoding, the glyph itself, and its name.
+Command line options allow undesired information to be suppressed and the Unicode range
+to be added. Other options permit a specified number of bytes or characters to be skipped.
+For example, the default output for this text:
+</p>
+<center>
+<img src="unidesc_fichiers/uninamex.jpg" alt="Some Japanese text" border="2" width="200">
+</center>
+<br>
+is this:
+<br>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>character  byte       UTF-32   encoded as     glyph   name
+        0          0  003053   E3 81 93       &#8218;±      HIRAGANA LETTER KO
+        1          3  00308C   E3 82 8C       &#8218;ê      HIRAGANA LETTER RE
+        2          6  00306F   E3 81 AF       &#8218;Í      HIRAGANA LETTER HA
+        3          9  0065E5   E6 97 A5       &#8220;ú      CJK character Nelson 2097
+        4         12  00672C   E6 9C AC       &#8211;{      CJK character Nelson   96
+        5         15  008A9E   E8 AA 9E       &#338;ê      CJK character Nelson 4374
+        6         18  003067   E3 81 A7       &#8218;Å      HIRAGANA LETTER DE
+        7         21  003059   E3 81 99       &#8218;·      HIRAGANA LETTER SU
+        8         24  003002   E3 80 82       &#129;B      IDEOGRAPHIC FULL STOP
+</pre>
+</td></tr>
+</tbody></table>
+</center>
+<p>
+<em>uniname</em> may also be used to validate UTF-8 input. In this case it reports
+the first invalid UTF-8 that it encounters, explains why it is invalid, and exits.
+</p>
+
+<h3>Unidesc</h3>
+
+<p>
+<em>unidesc</em> reports the character ranges to which different
+portions of the text belong. It can also be used to identify Unicode encodings
+(e.g. UTF-16be) flagged by magic numbers. Here is the output when given
+the above Japanese text as input:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>       0	       2	Hiragana
+       3	       5	CJK Unified Ideographs
+       6	       7	Hiragana
+       8	       9	CJK Symbols and Punctuation
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>Unihist</h3>
+
+<p>
+<em>unihist</em> generates a histogram of the characters in its input, which must be encoded
+in UTF-8 Unicode. By default, for each character it prints the frequency of the
+character as a percentage of the total, the absolute number of tokens in the input,
+the UTF-32 code in  hexadecimal, and, if the character is displayable, the glyph itself
+as UTF-8 Unicode. Command line flags allow unwanted information to be suppressed.
+In particular, note that by suppressing the percentages and counts it is possible
+to generate a list of the unique characters in the input. 
+</p>
+<p>
+Here is a portion of the histogram for an Armenian text:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>	  0.930	   2,599	0x00057E	&#1406;
+	  1.637	   4,574	0x00057F	&#1407;
+	  2.983	   8,332	0x000580	&#1408;
+	  0.720	   2,010	0x000581	&#1409;
+	  1.655	   4,622	0x000582	&#1410;
+	  0.312	     872	0x000583	&#1411;
+	  0.441	   1,232	0x000584	&#1412;
+	  0.130	     362	0x000585	&#1413;
+	  0.147	     412	0x000586	&#1414;
+	  0.000	       1	0x002026	&#129;c
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>ExplicateUTF8</h3>
+<p>
+<em>ExplicateUTF8</em> is intended for debugging or for learning about Unicode.
+It determines and explains the validity of a sequence of bytes as a UTF8 encoding.
+Here is the output when given the above Japanese text as input:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>The sequence 0xE3     0x81     0x93    
+             11100011 10000001 10010011 
+is a valid UTF-8 character encoding equivalent to UTF32 0x00003053.
+The first byte tells us that there should be 2
+continuation bytes since it begins with 3 contiguous 1s.
+There are 2 following bytes and all are valid
+continuation bytes since they all have high bits 10.
+The first byte contributes its low 4 bits.
+The remaining bytes each contribute their low 6 bits,
+for a total of 16 bits: 0011 000001 010011 
+This is padded to 32 places with 16 zeros: 00000000000000000011000001010011
+                                           0   0   0   0   3   0   5   3
+</pre>
+</td></tr></tbody></table></center>
+<p>
+And here is the output when given as input the same file with the first byte removed:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>The first byte, value 0x81, with bit pattern 10000001,
+is not a valid first byte of a UTF-8
+sequence because its high bits are 10.
+A valid first byte must be of the form 0nnnnnnn or 11nnnnnn.
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>Utf8lookup</h3>
+<p>
+<i>Utf8lookup</i> is a shell script which invokes <i>uniname</i> to
+provide an easy way to look up the character name corresponding to a
+codepoint from the command line. In addition to <i>uniname</i>
+it requires the utility <a href="http://billposer.org/Software/a2b.html">Ascii2binary</a>.
+</p>
+<p>
+For example, the command:
+</p>
+<pre>utf8lookup 1254
+</pre>
+will produce the output:
+<pre>001254  ETHIOPIC SYLLABLE QHEE
+</pre>
+
+<h3>Unirev</h3>
+<p>
+<i>Unirev</i> is a filter that reverses UTF-8 strings character-by-character (as opposed
+to byte-by-byte). This is useful when dealing with text that is not encoded in the
+order in which you want to display it or analyze it. For example, if you want to display
+Arabic on a terminal window that does not support bidi text, Unirev will put it into
+the normal display order. 
+</p>
+<p>
+For example, Unirev will convert this:
+</p>
+&nbsp;&nbsp;&nbsp;abcde<br>
+&nbsp;&nbsp;&nbsp;&#54620;&#44397;&#47568;<br>
+&nbsp;&nbsp;&nbsp;&#20116;&#21313;&#19971;
+<p>
+into this:
+</p>
+&nbsp;&nbsp;&nbsp;edcba<br>
+&nbsp;&nbsp;&nbsp;&#47568;&#44397;&#54620;<br>
+&nbsp;&nbsp;&nbsp;&#19971;&#21313;&#20116;
+
+<h2>Details</h2>
+
+<table cellspacing="3">
+<tbody>
+<tr><td>Language</td><td>C</td></tr>
+<tr><td>Environment</td><td>POSIX</td></tr>
+<tr><td>Current version</td><td>2.25</td></tr>
+<tr><td>Last modified</td><td>2007-06-30</td><td><p>
+</p><dt>
+</dt>
+<dd>
+</dd>
+</td></tr>
+<tr><td>License</td><td>GNU General Public License, Version 2</td></tr>
+</tbody></table>
+
+<h2>Download Source</h2>
+<ul>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.tar.gz">uniutils-2.25.tar.gz</a></li>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.tar.bz2">uniutils-2.25.tar.bz2</a></li>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.zip">uniutils.2-25.zip</a></li>
+</ul>
+<p>
+Packages:
+</p>
+<p>
+<a href="http://packages.debian.org/unstable/source/uniutils">Debian (unstable)</a>
+</p><p>
+<a href="http://www.freebsd.org/cgi/cvsweb.cgi/ports/sysutils/unidesc">FreeBSD port</a>
+</p>
+<p>
+<a href="http://www.freshports.org/sysutils/unidesc">FreeBSD Freshport</a>
+</p>
+<p>
+<a href="http://linux01.gwdg.de/%7Epbleser/rpm-navigation.php?cat=Utilities/unidesc/">SUSE Linux RPMs</a>
+</p>
+
+<p>
+If you would like to be notified of new releases,
+subscribe to <a href="http://freshmeat.net/projects/uniutils">uniutils</a>
+at <a href="http://freshmeat.net/">Freshmeat</a>.
+</p>
+
+<br>
+
+<h2><a name="changelog">Changes</a></h2>
+<dl>
+<dt>Version 2.25</dt>
+<dd>Adds to <i>unidesc</i> the option <i>-r</i> which causes it to list the ranges
+detected after reading all input rather than listing them as they are encountered,
+and adds to <i>uniname</i> the option <i>-B</i> which causes it to ignore characters
+within the Basic Multilingual Plane.
+</dd>
+<dt>Version 2.24</dt>
+<dd>Adds the utility <i>Unirev</i>, a filter which reverses UTF-8 strings.</dd>
+<dt>Version 2.23</dt>
+<dd><i>uniname</i> and <i>unidesc</i> now provide information about the
+unofficial ranges within the
+Private Use Area registered with the <a href="http://www.evertype.com/standards/csur/">ConScript Unicode Registry</a>.</dd>
+</dl>
+<br>
+<a href="http://www.billposer.org/Software/UnidescChangeLog.html">Full Change Log</a>
+<br>
+<br>
+<br>
+<center>
+<script type="text/javascript"><!--
+google_ad_client = "pub-0356924698057781";
+google_ad_width = 468;
+google_ad_height = 60;
+google_ad_format = "468x60_as";
+google_ad_type = "text_image";
+google_ad_channel = "";
+google_color_border = "38B63C";
+google_color_bg = "C3D9FF";
+google_color_link = "0000FF";
+google_color_text = "000000";
+google_color_url = "008000";
+//--></script>
+<script type="text/javascript" src="unidesc_fichiers/show_ads.js">
+</script><iframe name="google_ads_frame" src="unidesc_fichiers/ads.html" marginwidth="0" marginheight="0" vspace="0" hspace="0" allowtransparency="true" frameborder="0" height="60" scrolling="no" width="468"></iframe>
+
+</center>
+<br>
+<center>
+<a href="http://billposer.org/software.html">Back to Bill Poser's software page.</a>
+</center>
+<br>
+
+</body></html>
+
+WARC/0.17
+WARC-Type:warcinfo
+WARC-Record-ID:uuid:8389D026ABDC89F92D4EC5D395D1A0A4C7ADAF1DE7506ACB
+WARC-Date:2008-04-03T02:59:55Z
+Content-Length:9739
+Content-Type:Text/random
+WARC-Block-Digest:sha1:0451-9645-AM35P-12LL
+WARC-Payload-Digest:sha2:0121-KJ45-1111-A001L
+WARC-Truncated:time
+WARC-Warcinfo-ID:infuuid://id0:warc-x000sl076
+WARC-Filename:/home/user/warcfile.warc
+WARC-Profile:Compressed:gzip:best speed
+WARC-Identified-Payload-Type:text/html; charset=unicode-utf8
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head><!--Time-stamp: <2007-07-13 15:25:45 poser> -->
+
+
+   <meta http-equiv="Content-Type" content="text/html; charset=ascii">
+   <meta name="Author" content="Bill Poser">
+<link rel="stylesheet" type="text/css" href="unidesc_fichiers/bp.css" media="all"><title>Unicode Utilities</title></head><body>
+<center><h1>Unicode Utilities</h1></center>
+
+
+<h2>Description</h2>
+<p>
+This package consists of a set of programs for manipulating and analyzing Unicode text.
+The analysis utilities are useful when working with Unicode files when one doesn't
+know the writing system, doesn't have the necessary font, needs to inspect invisible characters,
+needs to find out whether characters have been combined or in what order they occur,
+or needs statistics on which characters occur.
+</p>
+
+<h3>Uniname</h3>
+<p>
+<em>uniname</em> defaults to printing the character offset of each character, its byte offset,
+its hex code value, its encoding, the glyph itself, and its name.
+Command line options allow undesired information to be suppressed and the Unicode range
+to be added. Other options permit a specified number of bytes or characters to be skipped.
+For example, the default output for this text:
+</p>
+<center>
+<img src="unidesc_fichiers/uninamex.jpg" alt="Some Japanese text" border="2" width="200">
+</center>
+<br>
+is this:
+<br>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>character  byte       UTF-32   encoded as     glyph   name
+        0          0  003053   E3 81 93       &#8218;±      HIRAGANA LETTER KO
+        1          3  00308C   E3 82 8C       &#8218;ê      HIRAGANA LETTER RE
+        2          6  00306F   E3 81 AF       &#8218;Í      HIRAGANA LETTER HA
+        3          9  0065E5   E6 97 A5       &#8220;ú      CJK character Nelson 2097
+        4         12  00672C   E6 9C AC       &#8211;{      CJK character Nelson   96
+        5         15  008A9E   E8 AA 9E       &#338;ê      CJK character Nelson 4374
+        6         18  003067   E3 81 A7       &#8218;Å      HIRAGANA LETTER DE
+        7         21  003059   E3 81 99       &#8218;·      HIRAGANA LETTER SU
+        8         24  003002   E3 80 82       &#129;B      IDEOGRAPHIC FULL STOP
+</pre>
+</td></tr>
+</tbody></table>
+</center>
+<p>
+<em>uniname</em> may also be used to validate UTF-8 input. In this case it reports
+the first invalid UTF-8 that it encounters, explains why it is invalid, and exits.
+</p>
+
+<h3>Unidesc</h3>
+
+<p>
+<em>unidesc</em> reports the character ranges to which different
+portions of the text belong. It can also be used to identify Unicode encodings
+(e.g. UTF-16be) flagged by magic numbers. Here is the output when given
+the above Japanese text as input:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>       0	       2	Hiragana
+       3	       5	CJK Unified Ideographs
+       6	       7	Hiragana
+       8	       9	CJK Symbols and Punctuation
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>Unihist</h3>
+
+<p>
+<em>unihist</em> generates a histogram of the characters in its input, which must be encoded
+in UTF-8 Unicode. By default, for each character it prints the frequency of the
+character as a percentage of the total, the absolute number of tokens in the input,
+the UTF-32 code in  hexadecimal, and, if the character is displayable, the glyph itself
+as UTF-8 Unicode. Command line flags allow unwanted information to be suppressed.
+In particular, note that by suppressing the percentages and counts it is possible
+to generate a list of the unique characters in the input. 
+</p>
+<p>
+Here is a portion of the histogram for an Armenian text:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>	  0.930	   2,599	0x00057E	&#1406;
+	  1.637	   4,574	0x00057F	&#1407;
+	  2.983	   8,332	0x000580	&#1408;
+	  0.720	   2,010	0x000581	&#1409;
+	  1.655	   4,622	0x000582	&#1410;
+	  0.312	     872	0x000583	&#1411;
+	  0.441	   1,232	0x000584	&#1412;
+	  0.130	     362	0x000585	&#1413;
+	  0.147	     412	0x000586	&#1414;
+	  0.000	       1	0x002026	&#129;c
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>ExplicateUTF8</h3>
+<p>
+<em>ExplicateUTF8</em> is intended for debugging or for learning about Unicode.
+It determines and explains the validity of a sequence of bytes as a UTF8 encoding.
+Here is the output when given the above Japanese text as input:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>The sequence 0xE3     0x81     0x93    
+             11100011 10000001 10010011 
+is a valid UTF-8 character encoding equivalent to UTF32 0x00003053.
+The first byte tells us that there should be 2
+continuation bytes since it begins with 3 contiguous 1s.
+There are 2 following bytes and all are valid
+continuation bytes since they all have high bits 10.
+The first byte contributes its low 4 bits.
+The remaining bytes each contribute their low 6 bits,
+for a total of 16 bits: 0011 000001 010011 
+This is padded to 32 places with 16 zeros: 00000000000000000011000001010011
+                                           0   0   0   0   3   0   5   3
+</pre>
+</td></tr></tbody></table></center>
+<p>
+And here is the output when given as input the same file with the first byte removed:
+</p>
+<center>
+<table border="1" cellpadding="4">
+<tbody><tr><td bgcolor="#ffa492">
+<pre>The first byte, value 0x81, with bit pattern 10000001,
+is not a valid first byte of a UTF-8
+sequence because its high bits are 10.
+A valid first byte must be of the form 0nnnnnnn or 11nnnnnn.
+</pre>
+</td></tr></tbody></table></center>
+
+<h3>Utf8lookup</h3>
+<p>
+<i>Utf8lookup</i> is a shell script which invokes <i>uniname</i> to
+provide an easy way to look up the character name corresponding to a
+codepoint from the command line. In addition to <i>uniname</i>
+it requires the utility <a href="http://billposer.org/Software/a2b.html">Ascii2binary</a>.
+</p>
+<p>
+For example, the command:
+</p>
+<pre>utf8lookup 1254
+</pre>
+will produce the output:
+<pre>001254  ETHIOPIC SYLLABLE QHEE
+</pre>
+
+<h3>Unirev</h3>
+<p>
+<i>Unirev</i> is a filter that reverses UTF-8 strings character-by-character (as opposed
+to byte-by-byte). This is useful when dealing with text that is not encoded in the
+order in which you want to display it or analyze it. For example, if you want to display
+Arabic on a terminal window that does not support bidi text, Unirev will put it into
+the normal display order. 
+</p>
+<p>
+For example, Unirev will convert this:
+</p>
+&nbsp;&nbsp;&nbsp;abcde<br>
+&nbsp;&nbsp;&nbsp;&#54620;&#44397;&#47568;<br>
+&nbsp;&nbsp;&nbsp;&#20116;&#21313;&#19971;
+<p>
+into this:
+</p>
+&nbsp;&nbsp;&nbsp;edcba<br>
+&nbsp;&nbsp;&nbsp;&#47568;&#44397;&#54620;<br>
+&nbsp;&nbsp;&nbsp;&#19971;&#21313;&#20116;
+
+<h2>Details</h2>
+
+<table cellspacing="3">
+<tbody>
+<tr><td>Language</td><td>C</td></tr>
+<tr><td>Environment</td><td>POSIX</td></tr>
+<tr><td>Current version</td><td>2.25</td></tr>
+<tr><td>Last modified</td><td>2007-06-30</td><td><p>
+</p><dt>
+</dt>
+<dd>
+</dd>
+</td></tr>
+<tr><td>License</td><td>GNU General Public License, Version 2</td></tr>
+</tbody></table>
+
+<h2>Download Source</h2>
+<ul>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.tar.gz">uniutils-2.25.tar.gz</a></li>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.tar.bz2">uniutils-2.25.tar.bz2</a></li>
+<li><a href="http://billposer.org/Software/Downloads/uniutils-2.25.zip">uniutils.2-25.zip</a></li>
+</ul>
+<p>
+Packages:
+</p>
+<p>
+<a href="http://packages.debian.org/unstable/source/uniutils">Debian (unstable)</a>
+</p><p>
+<a href="http://www.freebsd.org/cgi/cvsweb.cgi/ports/sysutils/unidesc">FreeBSD port</a>
+</p>
+<p>
+<a href="http://www.freshports.org/sysutils/unidesc">FreeBSD Freshport</a>
+</p>
+<p>
+<a href="http://linux01.gwdg.de/%7Epbleser/rpm-navigation.php?cat=Utilities/unidesc/">SUSE Linux RPMs</a>
+</p>
+
+<p>
+If you would like to be notified of new releases,
+subscribe to <a href="http://freshmeat.net/projects/uniutils">uniutils</a>
+at <a href="http://freshmeat.net/">Freshmeat</a>.
+</p>
+
+<br>
+
+<h2><a name="changelog">Changes</a></h2>
+<dl>
+<dt>Version 2.25</dt>
+<dd>Adds to <i>unidesc</i> the option <i>-r</i> which causes it to list the ranges
+detected after reading all input rather than listing them as they are encountered,
+and adds to <i>uniname</i> the option <i>-B</i> which causes it to ignore characters
+within the Basic Multilingual Plane.
+</dd>
+<dt>Version 2.24</dt>
+<dd>Adds the utility <i>Unirev</i>, a filter which reverses UTF-8 strings.</dd>
+<dt>Version 2.23</dt>
+<dd><i>uniname</i> and <i>unidesc</i> now provide information about the
+unofficial ranges within the
+Private Use Area registered with the <a href="http://www.evertype.com/standards/csur/">ConScript Unicode Registry</a>.</dd>
+</dl>
+<br>
+<a href="http://www.billposer.org/Software/UnidescChangeLog.html">Full Change Log</a>
+<br>
+<br>
+<br>
+<center>
+<script type="text/javascript"><!--
+google_ad_client = "pub-0356924698057781";
+google_ad_width = 468;
+google_ad_height = 60;
+google_ad_format = "468x60_as";
+google_ad_type = "text_image";
+google_ad_channel = "";
+google_color_border = "38B63C";
+google_color_bg = "C3D9FF";
+google_color_link = "0000FF";
+google_color_text = "000000";
+google_color_url = "008000";
+//--></script>
+<script type="text/javascript" src="unidesc_fichiers/show_ads.js">
+</script><iframe name="google_ads_frame" src="unidesc_fichiers/ads.html" marginwidth="0" marginheight="0" vspace="0" hspace="0" allowtransparency="true" frameborder="0" height="60" scrolling="no" width="468"></iframe>
+
+</center>
+<br>
+<center>
+<a href="http://billposer.org/software.html">Back to Bill Poser's software page.</a>
+</center>
+<br>
+
+</body></html>
+

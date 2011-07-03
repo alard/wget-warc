@@ -1,0 +1,106 @@
+/* ------------------------------------------------------------------- */
+/* Copyright (c) 2007-2008 Hanzo Archives Limited.                     */
+/*                                                                     */
+/* Licensed under the Apache License, Version 2.0 (the "License");     */
+/* you may not use this file except in compliance with the License.    */
+/* You may obtain a copy of the License at                             */
+/*                                                                     */
+/*     http://www.apache.org/licenses/LICENSE-2.0                      */
+/*                                                                     */
+/* Unless required by applicable law or agreed to in writing, software */
+/* distributed under the License is distributed on an "AS IS" BASIS,   */
+/* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or     */
+/* implied.                                                            */
+/* See the License for the specific language governing permissions and */
+/* limitations under the License.                                      */
+/*                                                                     */
+/* You may find more information about Hanzo Archives at               */
+/*                                                                     */
+/*     http://www.hanzoarchives.com/                                   */
+/*                                                                     */
+/* You may find more information about the WARC Tools project at       */
+/*                                                                     */
+/*     http://code.google.com/p/warc-tools/                            */
+/* ------------------------------------------------------------------- */
+
+
+HTTracks contributions:
+
+
+httrak2warc.sh
+---------------
+
+This script will help you to move existing HTTtack collections to WARC format.
+It's a 3 stags application:
+
+1. collect all files within a collection
+2. strip out unwanted ones (junk files, HTTRack related files ...)
+3. proceeds to the conversion 
+
+This script use the Python command "app/python/file2warc.py" internally.
+
+So, change it to fit your needs.
+
+
+WARC plugin for HTTrack
+------------------------
+
+To be able to use the WARC format as the backend storage system
+for HTTrack, make sure you have HTTrack version 3.42.x or above correctly
+installed:
+
+$ httrack --version
+HTTrack version 3.42-3+libhtsjava.so.2
+
+If no, the simplest way is to build it from source:
+
+$ wget http://www.httrack.com/httrack-3.42-3.tar.gz
+$ tar xf httrack-3.42-3.tar.gz
+$ cd httrack-3.42-3
+$ ./configure your_options_here && make && sudo make install
+
+
+Note: if you're running Debian/Ubunto or Redhat/Fedora, don't forget
+the install HTTrack development headers.
+
+
+When done, simply run:
+
+$ make httrack
+
+Note: if the "make" fail, make sure you've the HTTrack headers (*.h) inthe right directory "/usr/include/httrack".
+
+
+And list the generated shard library:
+
+$ ls -la contrib/httrack
+
+Now, you can run HTTrack with WARC as storage backend:
+
+$ httrack --wrapper contrib/httrack/libhtswarc.so YOUR_URL_TO_CRAWL
+
+Or on Mac OSX:
+
+$ httrack -%v0 --quiet --wrapper contrib/httrack/libhtswarc.dylib YOUR_URL_TO_CRAWL
+
+If you want to provide a file template for WARC naming, simply run HTTrack 
+with with a prefix (here "myprefix-"):
+
+$ httrack --wrapper contrib/httrack/libhtswarc.so,myprefix- YOUR_URL_TO_CRAWL
+
+The generated WARC files will be:
+
+myprefix-0.warc.gz
+myprefix-1.warc.gz
+myprefix-2.warc.gz
+myprefix-3.warc.gz
+... and so one
+
+NOTE: the default naming template is "httrack-", so the WARCs 
+will be: 
+
+httrack-0.warc.gz
+httrack-1.warc.gz
+httrack-2.warc.gz
+httrack-3.warc.gz
+... and so one

@@ -1,0 +1,55 @@
+.\"
+.TH warcdump " 09/01/2008 "
+.nh
+.ad l
+.SH "NAME"
+warcdump \-   dumps a WARC file.
+
+.SH "SYNOPSIS"
+.HP 3
+\fBwarcdump\fR   \fB-f  \fIfile.warc  [ -v ] [ -t \fIworking_dir\fP ] 
+
+.SH "DESCRIPTION"
+.PP
+\fBwarcdump\fR
+lists the headers fields of all WARC Records in a WARC file.
+.PP
+warcdump looks down the records of \fBWARC\fR file one by one, extracts header fields of the current record
+and displays their values in the screen.
+
+.SH "OPTIONS"
+.PP
+The options for the command. 
+\fBwarcdump\fR
+are\ :
+
+.PP
+\fB\-f\fR 
+.RS 4
+This option is mandatory when we use warcdump. It is used to indicate the name of the WARC file to
+dump.
+.RE
+.PP
+\fB\-t\fR 
+.RS 4
+This option is optional it allows to give the application working directory for temporary files creation.
+By default working directory is the current one.
+.RE
+.PP
+\fB\-v\fR 
+.RS 4
+This option is optional. It specifies if the user wants to also get anvl fields details with the header.
+.SH "EXAMPLES"
+.TP
+users@users-desktop:~$ warcdump -f file.warc -t /tmp/
+.RE
+.PP
+.RS 5
+Use warcdump command to get only the header.
+.RE
+.PP
+users@users-desktop:~$ warcdump -f file.warc -t /tmp/ -v
+.RE
+.PP
+.RS 5
+Use warcdump command to get the header and the anvl fields.

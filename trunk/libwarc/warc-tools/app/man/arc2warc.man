@@ -1,0 +1,60 @@
+.\"
+.TH arc2warc "09/01/2008"
+.nh
+.ad l
+.SH "NOM"
+arc2warc \- converts an ARC file into a WARC file
+
+.SH "SYNOPSIS"
+.HP 3
+\fBarc2warc\fR   \fB-a  \fIfile.arc  \fB-f  \fIfile.warc [ -c ] [ -t \fIworking_dir\fP ] 
+
+.SH "DESCRIPTION"
+.PP
+\fBarc2warc\fR
+creates a new \fBWARC\fR file initially empty, looks down the records of the \fBARC\fR file one by one,
+extracts current \fBARC record\fR, converts it into a \fBWARC Record\fR and stores this last one in a \fBWARC\fR file.
+
+.SH "OPTIONS"
+.PP
+The options for the command
+\fBarc2warc\fR
+are\ :
+.PP
+\fB\-a\fR 
+.RS 4
+This option is mandatory when we use arc2warc. It is used to indicate the name of the \fBARC\fR file to
+convert.
+.RE
+.PP
+\fB\-f\fR 
+.RS 4
+This option is mandatory. It must be followed by the name of the output \fBWARC\fR file.
+.RE
+.PP
+\fB\-c\fR 
+.RS 4
+This option is optional. If you use -c, the resulting \fBWARC\fR file is generated compressed following the
+gzip format. By default, the \fBWARC\fR file is not generated commpressed. The \fBWARC\fR file mode of
+compression is independent of \fBARC\fR file mode of compression, the user has to choose the method of
+compression.
+.RE
+.PP
+\fB\-t\fR 
+.RS 4
+This option is optional it allows to give the application work directory for temporary files creation. By
+default worker directory is the current one.
+.SH "EXAMPLES"
+.TP
+$ arc2warc -a file.arc -f file.warc -t /tmp/
+.RE
+.PP
+.RS 5
+The conversion of an ARC file into an uncompressed WARC file.
+.RE
+.PP
+$ arc2warc -a file.arc -f file.warc -t /tmp/ -c
+.RE
+.PP
+.RS 5
+The conversion of an ARC file into a compressed WARC file.

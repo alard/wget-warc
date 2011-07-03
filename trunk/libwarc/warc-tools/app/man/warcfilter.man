@@ -1,0 +1,74 @@
+.\"
+.TH warcfilter " 09/01/2008 "
+.nh
+.ad l
+.SH "NAME"
+warcfilter \-    filters WARC Record based on Uri, content type or record type.
+
+.SH "SYNOPSIS"
+.HP 3
+\fBwarcfilter\fR   \fB-f \fIfile.warc [-u \fIuri\fP] [-m \fImime\fP] [-r \fIrtype\fP]
+             [-v] [-t \fIworking_dir\fP]
+
+.SH "DESCRIPTION"
+.PP
+\fBwarcfilter\fR
+lists like warcdump the headers fields of WARC Records present in a WARC file but only
+those that are corresponding to the filter value. The filter can be used on the WARC-Subject-Uri field (if
+existing), on the Content-Type field or on the WARC-Type field.
+
+.SH "OPTIONS"
+.PP
+The options for the command. 
+\fBwarcfilter\fR
+are\ :
+
+.PP
+\fB\-f\fR 
+.RS 4
+This option is mandatory when we use warcfilter. It is used to indicate the name of the WARC file to
+filter. The option -v and -t are as described previously.
+
+.RE
+.PP
+\fB\-u\fR 
+.RS 4
+This option is to be used if we want to apply its argument as a filter on the WARC-Target-URI fields, if
+existing, of the WARC Records.
+
+.RE
+.PP
+\fB\-m\fR 
+.RS 4
+This option is to be used if we want to apply its argument as a filter on the Content-Type fields of the
+WARC Records.
+
+.RE
+.PP
+\fB\-r\fR 
+.RS 4
+This option is to be used if we want to apply its argument as a filter on the WARC-Type fields of the
+WARC Records. which represents the filter.
+
+.RE
+.PP
+\fB\-v\fR 
+.RS 4
+This option dumps ANVL (default no).
+
+
+.RE
+.PP
+\fB\-t\fR 
+.RS 4
+Temporary working directory (default ".").
+
+
+.SH "EXAMPLES"
+.TP
+users@users-desktop:~$ warcfilter -f file.warc -u http: -t /tmp/
+.RE
+.PP
+.RS 5
+Use warcfilter command (usage of filter on WARC-Target-URI fields).
+

@@ -1,0 +1,99 @@
+/* ------------------------------------------------------------------- */
+/* Copyright (c) 2007-2008 Hanzo Archives Limited.                     */
+/*                                                                     */
+/* Licensed under the Apache License, Version 2.0 (the "License");     */
+/* you may not use this file except in compliance with the License.    */
+/* You may obtain a copy of the License at                             */
+/*                                                                     */
+/*     http://www.apache.org/licenses/LICENSE-2.0                      */
+/*                                                                     */
+/* Unless required by applicable law or agreed to in writing, software */
+/* distributed under the License is distributed on an "AS IS" BASIS,   */
+/* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or     */
+/* implied.                                                            */
+/* See the License for the specific language governing permissions and */
+/* limitations under the License.                                      */
+/*                                                                     */
+/* You may find more information about Hanzo Archives at               */
+/*                                                                     */
+/*     http://www.hanzoarchives.com/                                   */
+/*                                                                     */
+/* You may find more information about the WARC Tools project at       */
+/*                                                                     */
+/*     http://code.google.com/p/warc-tools/                            */
+/* ------------------------------------------------------------------- *
+
+
+Prequesits
+===========
+
+- Sun JDK v1.5+
+- Apache ANT v1.6+ and ensure that the following environments variables are
+correctly set:
+
+JAVA_HOME
+ANT_HOME
+
+Note for Mac OS X users:
+The JAVA home directory is sometimes difficult to find. So use the following:
+
+export JAVA_HOME=/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home
+
+Then, install ANT like this:
+$ su
+# cd /usr/lib
+# wget http://apache.miroir-francais.fr/ant/binaries/apache-ant-1.7.1-bin.zip
+# unzip -a apache-ant-1.7.1-bin.zip
+# ln -sf apache-ant-1.7.1 ant
+# ln -sf /usr/lib/ant/bin/ant /usr/bin/
+# rm -f apache-ant-1.7.1-bin.zip
+
+Finally, set:
+export ANT_HOME=/usr/lib/ant
+
+- JNA (Java Native Access). Get the lastest "jna.jar" and put it 
+in the "lib" directory from:
+https://jna.dev.java.net/servlets/ProjectDocumentList
+
+Put the JNA jar file under ANT libs directory:
+# cp /somewhere/jna.jar /usr/lib/ant/lib/
+# exit
+
+
+Compile from source
+====================
+
+Build the "warc-tools" shared library from the main directory:
+
+$ export WARC_TOOLS_HOME=/somewhere/warc-tools-read-only
+$ cd $WARC_TOOLS_HOME
+$ make java
+$ export LD_LIBRARY_PATH=$WARC_TOOLS_HOME:$LD_LIBRARY_PATH
+
+Or for Mac OS X users, use DYLD_LIBRARY_PATH instead:
+$ export DYLD_LIBRARY_PATH=$WARC_TOOLS_HOME:$DYLD_LIBRARY_PATH
+
+
+
+Testing
+========
+
+Test the example file "contrib/java/awanvl.warc" with:
+$ cd $WARC_TOOLS_HOME/contrib/java
+$ export CLASSPATH=$ANT_HOME/lib/jna.jar:jar/warctools-with-main.jar 
+$ java -cp "$CLASSPATH" warctools.Main
+
+
+
+
+Wrapper usage
+==============
+
+The JAR files you'll use in your programs are:
+
+1) "contrib/java/jar/warctools.jar"
+
+2) Or "contrib/java/jar/warctools-with-jna.jar"
+which already includes JNA (i.e jna.jar).
+
+

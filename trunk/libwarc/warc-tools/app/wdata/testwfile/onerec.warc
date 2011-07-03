@@ -1,0 +1,63 @@
+WARC/0.18
+WARC-Type:resource
+WARC-Record-ID:uuid:294ABC34DAFF4FFB71F79C7499EA6815191B97E67B7F5A16
+WARC-Date:2006-11-20T04:12:58Z
+Content-Length:3072
+Content-Type:text/html
+WARC-IP-Address:83.243.10.110
+WARC-Target-URI:http://www.coeurdelafrance.com/frame2.php?song=3&idvisitor=65134
+
+HTTP/1.1 200 OK
+Date: Mon, 20 Nov 2006 04:12:39 GMT
+Server: Apache
+X-Powered-By: PHP/4.4.2
+Connection: close
+Content-Type: text/html
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Untitled Document</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="pragma" CONTENT="no-cache">
+<LINK href="./index_files/style.css" type=text/css rel=stylesheet>
+</head>
+
+<body bgcolor="#FFFFFF" background="index_files/fondframe.gif"><div align="center"> 
+<div align="center"> 
+  <a href="frame2.php?song=0&idvisitor=19508"><img src="index_files/lecteur1.gif" width="15" height="32" border="0"></a><embed src="./MID/BO1.mid" width="32" height="32"></embed><a href="frame2.php?song=2&idvisitor=38133"><img src="index_files/lecteur2.gif" width="15" height="32" border="0"></a>  <br>
+  <font size="1" face="Verdana, Arial, Helvetica, sans-serif"><br>
+  </font> </div>
+<div align="center"> <font size="1" face="Verdana, Arial, Helvetica, sans-serif"><a href="leader.php?idvisitor=
+24180" target="mainFrame"><img src="index_files/leader.gif" width="80" border="0"></a><a href="leader.php?idvisitor=
+24261" title="Notre Cher Leader" target="mainFrame"><strong><br>
+  Notre candidat <br>
+  </strong></a> 
+  <object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" width="80" height="100">
+    <param name="movie" value="flash/boiteid%E9es.swf">
+    <param name="quality" value="low">
+    <param name="wmode" value="transparent">
+    <embed src="flash/boiteid%E9es.swf" width="80" height="100" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash"></embed></object>
+  <br>
+  <a href="forum/index.htm" title="Donnez votre avis" target="mainFrame"><strong>Boite 
+  à idées <br>
+  </strong></a> 
+  <object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,29,0" width="80" height="100">
+    <param name="movie" value="flash/prophet.swf">
+    <param name="wmode" value="transparent">
+    <param name="quality" value="low">
+    <embed src="flash/prophet.swf" width="80" height="100" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer" type="application/x-shockwave-flash"></embed></object>
+  <br>
+  <a href="programme.php?idvisitor=
+19065" title="Plein de bonnes idees" target="mainFrame"><strong>Notre 
+  Programme</strong></a> <br>
+  <br>
+  <br>
+  <br>
+  <a href="./pressbook/index.php?idvisitor=%0A15117%0A" target="mainFrame"><img src="index_files/journal.gif" width="80" border="0"></a><a href="./pressbook/index.php?idvisitor='.mt_rand(0,65535).'" title="Les articles parus sur notre mouvement" target="mainFrame"><strong><br>
+  Revue de presse</strong></a><br>
+  <br>
+  <br>
+  <a href="liens.php" target="mainFrame"><img src="index_files/notreterre.gif" width="64" height="64" border="0"></a><br>
+  <strong><a href="liens.php" targe
+
