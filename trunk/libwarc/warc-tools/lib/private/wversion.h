@@ -35,7 +35,7 @@ extern "C"
 
 #include <wport.h>
 
-#define WARC_VERSION "WARC/0.18"
+#define WARC_VERSION "WARC/1.0"
 
     extern warc_bool_t w_checkCompatibleVersions (const warc_u8_t * id);
 
