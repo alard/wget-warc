@@ -57,19 +57,6 @@ void warc_uuid_str (char *urn_str)
   sprintf(urn_str, "<urn:uuid:%s>", uuid_str);
 }
 
-bool warc_filename_ends_with_warc (char *filename)
-{
-  char *lastfour;
-  int len = strlen (filename);
-  if (len < 4)
-    return false;
-  else
-  {
-    lastfour = &(filename[len - 4]);
-    return (0 == strncasecmp (lastfour, "warc", 4));
-  }
-}
-
 bool warc_start_new_file ()
 {
   if (opt.warc_filename == 0)
@@ -80,30 +67,22 @@ bool warc_start_new_file ()
   if (warc_current_winfo_uuid_str)
     free (warc_current_winfo_uuid_str);
 
-  bool disableCompression = warc_filename_ends_with_warc(opt.warc_filename);
-
   warc_current_file_number++;
 
-  int filename_length = strlen (opt.warc_filename);
-  char *new_filename = opt.warc_filename;
+  int base_filename_length = strlen (opt.warc_filename);
+  /* filename format:  base + "-" + 5 digit serial number + ".warc.gz" */
+  char *new_filename = alloca (base_filename_length + 1 + 5 + 8 + 1);
 
-  if (warc_current_file_number > 0)
+  char *extension = (opt.warc_compression_enabled ? "warc.gz" : "warc");
+
+  /* If max size is enabled, we add a serial number to the file names. */
+  if (opt.warc_maxsize > 0)
   {
-    new_filename = alloca (5 + (warc_current_file_number % 10) + filename_length);
-
-    /* split at first . */
-    char *suffix = strchr (opt.warc_filename, '.');
-    if (suffix)
-    {
-      /* insert number before first . */
-      strcpy (new_filename, opt.warc_filename);
-      sprintf (new_filename + (suffix - opt.warc_filename), ".%d%s", warc_current_file_number, suffix);
-    }
-    else
-    {
-      /* append number */
-      sprintf (new_filename, "%s.%d", opt.warc_filename, warc_current_file_number);
-    }
+    sprintf (new_filename, "%s-%05d.%s", opt.warc_filename, warc_current_file_number, extension);
+  }
+  else
+  {
+    sprintf (new_filename, "%s.%s", opt.warc_filename, extension);
   }
 
   wfile_comp_t compression = (opt.warc_compression_enabled ? WARC_FILE_COMPRESSED_GZIP_BEST_COMPRESSION : WARC_FILE_UNCOMPRESSED);
