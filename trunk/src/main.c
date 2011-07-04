@@ -288,6 +288,7 @@ static struct cmdline_option option_data[] =
     { "wait", 'w', OPT_VALUE, "wait", -1 },
     { "waitretry", 0, OPT_VALUE, "waitretry", -1 },
     { "warc-file", 0, OPT_VALUE, "warcfile", -1 },
+    { "warc-max-size", 0, OPT_VALUE, "warcmaxsize", -1 },
     { "warc-tempfile", 0, OPT_VALUE, "warctempfile", -1 },
 #ifdef USE_WATT32
     { "wdebug", 0, OPT_BOOLEAN, "wdebug", -1 },

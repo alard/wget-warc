@@ -88,7 +88,8 @@ struct options
   char *output_document;	/* The output file to which the
 				   documents will be printed.  */
   char *warc_filename;		/* WARC output filename */
-  char *warc_tempfilename;		/* WARC temp filename */
+  char *warc_tempfilename;	/* WARC temp filename */
+  wgint warc_maxsize;           /* WARC max archive size */
 
   char *user;			/* Generic username */
   char *passwd;			/* Generic password */
