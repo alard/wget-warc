@@ -891,6 +891,7 @@ There is NO WARRANTY, to the extent permitted by law.\n"), stdout);
 }
 
 char *program_name; /* Needed by lib/error.c. */
+char *program_argstring; /* Needed by wget_warc.c. */
 
 int
 main (int argc, char **argv)
@@ -925,6 +926,20 @@ main (int argc, char **argv)
   /* Drop extension (typically .EXE) from executable filename. */
   windows_main ((char **) &exec_name);
 #endif
+
+  /* Construct the arguments string. */
+  int argstring_length = 1;
+  for (i = 1; i < argc; i++)
+    argstring_length += strlen (argv[i]) + 1;
+  char *p = program_argstring = malloc (argstring_length * sizeof (char));
+  for (i = 1; i < argc; i++)
+  {
+    int arglen = strlen (argv[i]);
+    memcpy (p, argv[i], arglen);
+    p += arglen;
+    *p++ = ' ';
+  }
+  *p = '\0';
 
   /* Load the hard-coded defaults.  */
   defaults ();

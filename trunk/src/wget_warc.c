@@ -9,6 +9,9 @@
 
 extern char *version_string;
 
+/* set by main in main.c */
+extern char *program_argstring;
+
 static void *warc_current_wfile;
 static char *warc_current_winfo_uuid_str;
 static int  warc_current_file_number;
@@ -113,8 +116,8 @@ bool warc_start_new_file ()
   warc_setRecordId (infoWRecord, warc_current_winfo_uuid_str);
   warc_setFilename (infoWRecord, new_filename_basename);
 
-  char winfo_header_string [300]; /* lazy */
-  sprintf (winfo_header_string, "software: Wget/%s (%s)\r\nformat: WARC File Format 1.0\r\nconformsTo: http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf\r\nrobots: %s\r\n\r\n", version_string, OS_TYPE, (opt.use_robots ? "classic" : "off"));
+  char winfo_header_string [400]; /* lazy */
+  sprintf (winfo_header_string, "software: Wget/%s (%s)\r\nformat: WARC File Format 1.0\r\nconformsTo: http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf\r\nrobots: %s\r\nwget-arguments: %s\r\n\r\n", version_string, OS_TYPE, (opt.use_robots ? "classic" : "off"), program_argstring);
   warc_setContentFromString (infoWRecord, winfo_header_string);
 
   /* Returns true on error. */
