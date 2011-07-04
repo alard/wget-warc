@@ -1988,12 +1988,12 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
     warc_uuid_str (warc_request_uuid);
 
     void * requestWRecord = bless (WRecord);
-    WRecord_setRecordType (requestWRecord, WARC_REQUEST_RECORD);
-    WRecord_setTargetUri (requestWRecord, ((warc_u8_t *) u->url), w_strlen(((warc_u8_t *) u->url)));
-    WRecord_setContentType (requestWRecord, ((warc_u8_t *) "application/http;msgtype=request"), w_strlen(((warc_u8_t *) "application/http;msgtype=request")));
-    WRecord_setDate (requestWRecord, ((warc_u8_t *) warc_timestamp_str), w_strlen(((warc_u8_t *) warc_timestamp_str)));
-    WRecord_setRecordId (requestWRecord, ((warc_u8_t *) warc_request_uuid), w_strlen(((warc_u8_t *) warc_request_uuid)));
-    WRecord_setContentFromFileName (requestWRecord, warc_tmp_filename);
+    warc_setRecordType (requestWRecord, WARC_REQUEST_RECORD);
+    warc_setTargetUri (requestWRecord, u->url);
+    warc_setContentType (requestWRecord, "application/http;msgtype=request");
+    warc_setDate (requestWRecord, warc_timestamp_str);
+    warc_setRecordId (requestWRecord, warc_request_uuid);
+    warc_setContentFromFileName (requestWRecord, warc_tmp_filename);
 
     warc_store_record (requestWRecord);
 
@@ -2390,13 +2390,13 @@ read_header:
             warc_uuid_str (warc_response_uuid);
 
             void * responseWRecord = bless (WRecord);
-            WRecord_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
-            WRecord_setTargetUri (responseWRecord, ((warc_u8_t *) u->url), w_strlen(((warc_u8_t *) u->url)));
-            WRecord_setContentType (responseWRecord, ((warc_u8_t *) "application/http;msgtype=response"), w_strlen(((warc_u8_t *) "application/http;msgtype=response")));
-            WRecord_setDate (responseWRecord, ((warc_u8_t *) warc_timestamp_str), w_strlen(((warc_u8_t *) warc_timestamp_str)));
-            WRecord_setRecordId (responseWRecord, ((warc_u8_t *) warc_response_uuid), w_strlen(((warc_u8_t *) warc_response_uuid)));
-            WRecord_setConcurrentTo (responseWRecord, ((warc_u8_t *) warc_request_uuid), w_strlen(((warc_u8_t *) warc_request_uuid)));
-            WRecord_setContentFromString (responseWRecord, ((warc_u8_t *) head), w_strlen(((warc_u8_t *) head)));
+            warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
+            warc_setTargetUri (responseWRecord, u->url);
+            warc_setContentType (responseWRecord, "application/http;msgtype=response");
+            warc_setDate (responseWRecord, warc_timestamp_str);
+            warc_setRecordId (responseWRecord, warc_response_uuid);
+            warc_setConcurrentTo (responseWRecord, warc_request_uuid);
+            warc_setContentFromString (responseWRecord, head);
 
             warc_store_record (responseWRecord);
 
@@ -2552,13 +2552,13 @@ read_header:
         warc_uuid_str (warc_response_uuid);
 
         void * responseWRecord = bless (WRecord);
-        WRecord_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
-        WRecord_setTargetUri (responseWRecord, ((warc_u8_t *) u->url), w_strlen(((warc_u8_t *) u->url)));
-        WRecord_setContentType (responseWRecord, ((warc_u8_t *) "application/http;msgtype=response"), w_strlen(((warc_u8_t *) "application/http;msgtype=response")));
-        WRecord_setDate (responseWRecord, ((warc_u8_t *) warc_timestamp_str), w_strlen(((warc_u8_t *) warc_timestamp_str)));
-        WRecord_setRecordId (responseWRecord, ((warc_u8_t *) warc_response_uuid), w_strlen(((warc_u8_t *) warc_response_uuid)));
-        WRecord_setConcurrentTo (responseWRecord, ((warc_u8_t *) warc_request_uuid), w_strlen(((warc_u8_t *) warc_request_uuid)));
-        WRecord_setContentFromString (responseWRecord, ((warc_u8_t *) head), w_strlen(((warc_u8_t *) head)));
+        warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
+        warc_setTargetUri (responseWRecord, (u->url));
+        warc_setContentType (responseWRecord, ("application/http;msgtype=response"));
+        warc_setDate (responseWRecord, (warc_timestamp_str));
+        warc_setRecordId (responseWRecord, (warc_response_uuid));
+        warc_setConcurrentTo (responseWRecord, (warc_request_uuid));
+        warc_setContentFromString (responseWRecord, (head));
 
         warc_store_record (responseWRecord);
 
@@ -2719,13 +2719,13 @@ read_header:
     warc_uuid_str (warc_response_uuid);
 
     void * responseWRecord = bless (WRecord);
-    WRecord_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
-    WRecord_setTargetUri (responseWRecord, ((warc_u8_t *) u->url), w_strlen(((warc_u8_t *) u->url)));
-    WRecord_setContentType (responseWRecord, ((warc_u8_t *) "application/http;msgtype=response"), w_strlen(((warc_u8_t *) "application/http;msgtype=response")));
-    WRecord_setDate (responseWRecord, ((warc_u8_t *) warc_timestamp_str), w_strlen(((warc_u8_t *) warc_timestamp_str)));
-    WRecord_setRecordId (responseWRecord, ((warc_u8_t *) warc_response_uuid), w_strlen(((warc_u8_t *) warc_response_uuid)));
-    WRecord_setConcurrentTo (responseWRecord, ((warc_u8_t *) warc_request_uuid), w_strlen(((warc_u8_t *) warc_request_uuid)));
-    WRecord_setContentFromFileName (responseWRecord, warc_tmp_filename);
+    warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
+    warc_setTargetUri (responseWRecord, u->url);
+    warc_setContentType (responseWRecord, "application/http;msgtype=response");
+    warc_setDate (responseWRecord, warc_timestamp_str);
+    warc_setRecordId (responseWRecord, warc_response_uuid);
+    warc_setConcurrentTo (responseWRecord, warc_request_uuid);
+    warc_setContentFromFileName (responseWRecord, warc_tmp_filename);
 
     warc_store_record (responseWRecord);
 

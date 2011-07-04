@@ -3,7 +3,6 @@
 #include <strings.h>
 #include <time.h>
 #include <uuid/uuid.h>
-#include <warc.h>
 
 #include "wget.h"
 #include "wget_warc.h"
@@ -13,6 +12,32 @@ extern char *version_string;
 static void *warc_current_wfile;
 static char *warc_current_winfo_uuid_str;
 static int  warc_current_file_number;
+
+#define WARC_WRAP_METHOD(name)                                          \
+    bool warc_##name(void *record, char *u8_string)                     \
+    {                                                                   \
+      warc_u8_t *wu8_string = (warc_u8_t *)u8_string;                   \
+      return WRecord_##name(record, wu8_string, w_strlen(wu8_string));  \
+    }
+
+WARC_WRAP_METHOD(setTargetUri)
+WARC_WRAP_METHOD(setContentType)
+WARC_WRAP_METHOD(setDate)
+WARC_WRAP_METHOD(setRecordId)
+WARC_WRAP_METHOD(setFilename)
+WARC_WRAP_METHOD(setConcurrentTo)
+WARC_WRAP_METHOD(setContentFromString)
+WARC_WRAP_METHOD(setWarcInfoId)
+
+bool warc_setContentFromFileName(void *record, char *u8_filename)
+{
+  return WRecord_setContentFromFileName(record, u8_filename);
+}
+
+bool warc_setRecordType(void *record, const warc_rec_t t)
+{
+  return WRecord_setRecordType(record, t);
+}
 
 void warc_timestamp (char *timestamp)
 {
@@ -56,7 +81,7 @@ bool warc_start_new_file ()
     free (warc_current_winfo_uuid_str);
 
   bool disableCompression = warc_filename_ends_with_warc(opt.warc_filename);
-  
+
   warc_current_file_number++;
 
   int filename_length = strlen (opt.warc_filename);
@@ -97,15 +122,15 @@ bool warc_start_new_file ()
   warc_timestamp (warc_timestamp_str);
 
   void * infoWRecord = bless (WRecord);
-  WRecord_setRecordType (infoWRecord, WARC_INFO_RECORD);
-  WRecord_setContentType (infoWRecord, ((warc_u8_t *) "application/warc-fields"), w_strlen(((warc_u8_t *) "application/warc-fields")));
-  WRecord_setDate (infoWRecord, ((warc_u8_t *) warc_timestamp_str), w_strlen(((warc_u8_t *) warc_timestamp_str)));
-  WRecord_setRecordId (infoWRecord, ((warc_u8_t *) warc_current_winfo_uuid_str), w_strlen(((warc_u8_t *) warc_current_winfo_uuid_str)));
-  WRecord_setFilename (infoWRecord, ((warc_u8_t *) new_filename), w_strlen(((warc_u8_t *) new_filename)));
+  warc_setRecordType (infoWRecord, WARC_INFO_RECORD);
+  warc_setContentType (infoWRecord, "application/warc-fields");
+  warc_setDate (infoWRecord, warc_timestamp_str);
+  warc_setRecordId (infoWRecord, warc_current_winfo_uuid_str);
+  warc_setFilename (infoWRecord, new_filename);
 
   char winfo_header_string [300]; /* lazy */
   sprintf (winfo_header_string, "software: Wget/%s (%s)\r\nformat: WARC File Format 1.0\r\nconformsTo: http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf\r\nrobots: %s\r\n\r\n", version_string, OS_TYPE, (opt.use_robots ? "classic" : "off"));
-  WRecord_setContentFromString (infoWRecord, ((warc_u8_t *) winfo_header_string), w_strlen(((warc_u8_t *) winfo_header_string)));
+  warc_setContentFromString (infoWRecord, winfo_header_string);
 
   /* Returns true on error. */
   if ( WFile_storeRecord (warc_current_wfile, infoWRecord) )
@@ -125,7 +150,7 @@ bool warc_store_record (void * record)
   if (warc_current_wfile != 0)
   {
     /* Point to the current info record. */
-    WRecord_setWarcInfoId (record, ((warc_u8_t *) warc_current_winfo_uuid_str), w_strlen(((warc_u8_t *) warc_current_winfo_uuid_str)));
+    warc_setWarcInfoId (record, warc_current_winfo_uuid_str);
 
     /* This will return true if writing failed. */
     if ( WFile_storeRecord (warc_current_wfile, record) )
@@ -182,4 +207,3 @@ void warc_close ()
     destroy (warc_current_wfile);
   }
 }
-
