@@ -1123,9 +1123,6 @@ WPUBLIC warc_bool_t WFile_setMaxSize (void * _self, const warc_u64_t max_size)
   /* Preconditions */
   CASSERT (self);
 
-  unless (MAXSIZE)
-  return (WARC_FALSE);
-
   if (MAXSIZE < max_size)
     MAXSIZE = max_size;
   else
@@ -1944,7 +1941,7 @@ WFile_storeRecordGzipCompressed (void * _self,
   FSIZE = off;
 
   /* check if the WARC File is full */
-  if (MAXSIZE <= off)
+  if (MAXSIZE > 0 && MAXSIZE <= off)
     {
       /* set WARC file to FULL, no more records could be added */
       ISFULL = WARC_TRUE;
@@ -1989,7 +1986,7 @@ WFile_storeRecordUncompressed (void* _self, const void * wrec,
   FSIZE = off;
 
   /* check if the WARC File is full */
-  if (MAXSIZE <= off)
+  if (MAXSIZE > 0 && MAXSIZE <= off)
     {
       /* set WARC file to FULL, no more records could be added */
       ISFULL = WARC_TRUE;
@@ -2365,11 +2362,6 @@ WPRIVATE void * WFile_constructor (void * _self, va_list * app)
   MODE    = mode;
 
   MAXSIZE = max_size;
-  unless (MAXSIZE)
-  {
-    destroy (self);
-    return (NIL);
-  }
   
 
   if (MODE == WARC_FILE_READER) /* reading from a WARC file */
@@ -2457,7 +2449,7 @@ WPRIVATE void * WFile_constructor (void * _self, va_list * app)
       w_ftell (FH, off);
       FSIZE = off;
 
-      if (FSIZE >= MAXSIZE)
+      if (MAXSIZE > 0 && FSIZE >= MAXSIZE)
         {
           w_fprintf (fprintf (stderr , "Couldn't open a WARC file with MAX size limit lesser than its actual size\n") );
           destroy (self);
