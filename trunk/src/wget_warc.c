@@ -149,32 +149,24 @@ bool warc_store_record (void * record)
 {
   if (warc_current_wfile != 0)
   {
+    /* If the WARC file is full, start a new file. */
+    if ( WFile_isFull (warc_current_wfile) )
+    {
+      if (! warc_start_new_file ())
+      {
+        fprintf(stderr, "Could not open new WARC file.\n");
+        return false;
+      }
+    }
+
     /* Point to the current info record. */
     warc_setWarcInfoId (record, warc_current_winfo_uuid_str);
 
     /* This will return true if writing failed. */
     if ( WFile_storeRecord (warc_current_wfile, record) )
     {
-      /* A problem. Is the warc file full? */
-      if ( ! WFile_isFull (warc_current_wfile) )
-      {
-        fprintf(stderr, "Error writing record to WARC file.\n");
-        return false;
-      }
-      else
-      {
-        if (! warc_start_new_file ())
-        {
-          fprintf(stderr, "Could not open new WARC file.\n");
-          return false;
-        }
-
-        if ( WFile_storeRecord (warc_current_wfile, record) )
-        {
-          fprintf(stderr, "Error writing record to WARC file.\n");
-          return false;
-        }
-      }
+      fprintf(stderr, "Error writing record to WARC file.\n");
+      return false;
     }
 
     return true;
