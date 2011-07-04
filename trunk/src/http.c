@@ -2386,7 +2386,8 @@ read_header:
           if (warc_enabled)
           {
             /* create and store response record in WARC */
-            warc_timestamp (warc_timestamp_str);
+            /* note: per the WARC standard, the request and response should share
+               the same date header. we re-use the timestamp of the request. */
             warc_uuid_str (warc_response_uuid);
 
             void * responseWRecord = bless (WRecord);
