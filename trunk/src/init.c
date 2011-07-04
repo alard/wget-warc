@@ -263,6 +263,7 @@ static const struct {
   { "wait",             &opt.wait,              cmd_time },
   { "waitretry",        &opt.waitretry,         cmd_time },
   { "warcfile",         &opt.warc_filename,     cmd_file },
+  { "warcmaxsize",      &opt.warc_maxsize,      cmd_bytes },
   { "warctempfile",     &opt.warc_tempfilename, cmd_file },
 #ifdef USE_WATT32
   { "wdebug",           &opt.wdebug,            cmd_boolean },
@@ -361,6 +362,8 @@ defaults (void)
   opt.encoding_remote = NULL;
 
   opt.useservertimestamps = true;
+
+  opt.warc_maxsize = 1024 * 1024 * 1024;
 }
 
 /* Return the user's home directory (strdup-ed), or NULL if none is
