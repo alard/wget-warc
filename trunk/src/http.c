@@ -1559,9 +1559,6 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
 
   /* Declare WARC variables. */
   bool warc_enabled = (opt.warc_filename != 0);
-  char * warc_tmp_filename = ".warc.tmp";
-  if (warc_enabled && opt.warc_tempfilename != 0)
-    warc_tmp_filename = opt.warc_tempfilename;
   
   FILE * warc_tmp = 0;
   char warc_timestamp_str [21];
@@ -1941,7 +1938,7 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
 
   /* open temporary file for request */
   if (warc_enabled)
-    warc_tmp = fopen (warc_tmp_filename, "wb+");
+    warc_tmp = warc_tempfile ();
   /* TODO check WARC error? */
 
   /* Send the request to server.  */
@@ -1965,13 +1962,14 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
       }
     }
 
-  if (warc_tmp != 0)
-    fclose (warc_tmp);
-
   if (write_error < 0)
     {
       CLOSE_INVALIDATE (sock);
       request_free (req);
+
+      if (warc_tmp != 0)
+        fclose (warc_tmp);
+
       return WRITEFAILED;
     }
   logprintf (LOG_VERBOSE, _("%s request sent, awaiting response... "),
@@ -1993,13 +1991,15 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
     warc_setContentType (requestWRecord, "application/http;msgtype=request");
     warc_setDate (requestWRecord, warc_timestamp_str);
     warc_setRecordId (requestWRecord, warc_request_uuid);
-    warc_setContentFromFileName (requestWRecord, warc_tmp_filename);
+    warc_setContentFromFile (requestWRecord, warc_tmp);
 
     warc_store_record (requestWRecord);
 
     destroy (requestWRecord);
 
-    unlink (warc_tmp_filename);
+    // destroy has closed the file
+    //if (warc_tmp != 0)
+    //  fclose (warc_tmp);
   }
 
 
@@ -2661,7 +2661,7 @@ read_header:
   /* open temporary file for resposne */
   if (warc_enabled)
   {
-    warc_tmp = fopen (warc_tmp_filename, "wb+");
+    warc_tmp = warc_tempfile ();
     /* TODO check WARC error? */
 
     /* keep response headers */
@@ -2710,9 +2710,6 @@ read_header:
 
 
 
-  if (warc_tmp != 0)
-    fclose (warc_tmp);
-
   if (warc_enabled)
   {
     /* create and store response record in WARC */
@@ -2726,13 +2723,15 @@ read_header:
     warc_setDate (responseWRecord, warc_timestamp_str);
     warc_setRecordId (responseWRecord, warc_response_uuid);
     warc_setConcurrentTo (responseWRecord, warc_request_uuid);
-    warc_setContentFromFileName (responseWRecord, warc_tmp_filename);
+    warc_setContentFromFile (responseWRecord, warc_tmp);
 
     warc_store_record (responseWRecord);
 
     destroy (responseWRecord);
 
-    unlink (warc_tmp_filename);
+    // destroy has closed the file
+    //if (warc_tmp != 0)
+    //  fclose (warc_tmp);
   }
 
 

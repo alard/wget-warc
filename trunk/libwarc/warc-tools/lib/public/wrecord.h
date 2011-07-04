@@ -143,6 +143,7 @@ extern "C"
     
     extern warc_bool_t WRecord_setContentFromFileName (void *, const char *);
     
+    extern warc_bool_t WRecord_setContentFromFile (void *, FILE *);
     
     extern warc_bool_t WRecord_setDateFromArc       (void *  ,
                                                      const warc_u8_t * ,

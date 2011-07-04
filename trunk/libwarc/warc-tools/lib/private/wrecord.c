@@ -1889,6 +1889,48 @@ WIPUBLIC void * WRecord_setHeader (void * const _self, void * h)
 
 /**
  * @param _self WRecord object instance
+ * @param dfile a file handle
+ *
+ * @return False if succeeds, True otherwise
+ *
+ * NOTE: The file will be closed when destroy (WRecord) is called.
+ *
+ * WRecord data file setting function
+ */
+
+WIPUBLIC warc_bool_t WRecord_setContentFromFile(void * _self,
+                                                FILE * dfile)
+{
+
+  struct WRecord * self  = _self;
+
+  /* Preconditions */
+  CASSERT (self);
+  assert (! EDATAF);
+  assert (! DATAF);
+  assert (! CONTENT);
+
+  unless (dfile)
+    return (WARC_TRUE);
+
+  EDATAF = dfile;
+
+  w_file_size (dfile, SIZE);
+
+  if (WHeader_setContentLength (HDL, SIZE))
+    {
+      w_fclose (dfile);
+      return (WARC_TRUE);
+    }
+
+  CHECK = CHECK | 0x0008;
+  
+  return (WARC_FALSE);
+}
+
+
+/**
+ * @param _self WRecord object instance
  * @param file data file name as const char *
  *
  * @return False if succeeds, True otherwise
@@ -1933,6 +1975,8 @@ WIPUBLIC warc_bool_t WRecord_setContentFromFileName (void * _self,
 
 
 /**
+ * NOTE: I don't think this method is actually being used?
+ *
  * @param _self Wrecord object instance
  * @param dataf Warc Data File *
  *

@@ -290,7 +290,7 @@ static struct cmdline_option option_data[] =
     { "warc-compression", 0, OPT_BOOLEAN, "warccompression", -1 },
     { "warc-file", 0, OPT_VALUE, "warcfile", -1 },
     { "warc-max-size", 0, OPT_VALUE, "warcmaxsize", -1 },
-    { "warc-tempfile", 0, OPT_VALUE, "warctempfile", -1 },
+    { "warc-tempdir", 0, OPT_VALUE, "warctempdir", -1 },
 #ifdef USE_WATT32
     { "wdebug", 0, OPT_BOOLEAN, "wdebug", -1 },
 #endif
@@ -542,7 +542,8 @@ Download:\n"),
     N_("\
        --warc-max-size=NUMBER    set maximum size of WARC files to NUMBER.\n"),
     N_("\
-       --warc-tempfile=FILENAME  temporary file used by the WARC writer.\n"),
+       --warc-tempdir=DIRECTORY  location for temporary files created by the\n\
+                                 WARC writer.\n"),
     "\n",
 
     N_("\

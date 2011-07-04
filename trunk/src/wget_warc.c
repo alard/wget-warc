@@ -1,10 +1,14 @@
+#define _GNU_SOURCE
+
+#include "wget.h"
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <time.h>
 #include <uuid/uuid.h>
 
-#include "wget.h"
 #include "wget_warc.h"
 
 extern char *version_string;
@@ -35,6 +39,11 @@ WARC_WRAP_METHOD(setWarcInfoId)
 bool warc_setContentFromFileName(void *record, char *u8_filename)
 {
   return WRecord_setContentFromFileName(record, u8_filename);
+}
+
+bool warc_setContentFromFile(void *record, FILE *file)
+{
+  return WRecord_setContentFromFile(record, file);
 }
 
 bool warc_setRecordType(void *record, const warc_rec_t t)
@@ -189,3 +198,24 @@ void warc_close ()
     destroy (warc_current_wfile);
   }
 }
+
+FILE * warc_tempfile ()
+{
+  if (opt.warc_tempdir == 0)
+    return 0;
+
+  int dirlen = strlen (opt.warc_tempdir);
+  char *filename = alloca (dirlen + 18);
+  sprintf (filename, "%s/.wget_warc_XXXXXX", opt.warc_tempdir);
+
+  int fd = mkstemp (filename);
+  if (fd < 0)
+    return 0;
+
+  if (unlink (filename) < 0)
+    return 0;
+
+  return fdopen (fd, "wb+");
+  /* TODO check for errors */
+}
+

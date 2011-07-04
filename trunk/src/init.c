@@ -265,7 +265,7 @@ static const struct {
   { "warccompression",  &opt.warc_compression_enabled, cmd_boolean },
   { "warcfile",         &opt.warc_filename,     cmd_file },
   { "warcmaxsize",      &opt.warc_maxsize,      cmd_bytes },
-  { "warctempfile",     &opt.warc_tempfilename, cmd_file },
+  { "warctempdir",      &opt.warc_tempdir,      cmd_directory },
 #ifdef USE_WATT32
   { "wdebug",           &opt.wdebug,            cmd_boolean },
 #endif
@@ -366,6 +366,7 @@ defaults (void)
 
   opt.warc_maxsize = 1024 * 1024 * 1024;
   opt.warc_compression_enabled = true;
+  opt.warc_tempdir = ".";
 }
 
 /* Return the user's home directory (strdup-ed), or NULL if none is

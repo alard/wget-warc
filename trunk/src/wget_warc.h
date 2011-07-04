@@ -15,4 +15,8 @@ bool warc_setConcurrentTo(void *record, char *u8_to);
 bool warc_setContentFromString(void *record, char *u8_content);
 bool warc_setWarcInfoId(void *record, char *u8_infoId);
 bool warc_setContentFromFileName(void *record, char *u8_filename);
+bool warc_setContentFromFile(void *record, FILE *file);
 bool warc_setRecordType(void *record, const warc_rec_t t);
+
+FILE * warc_tempfile();
+

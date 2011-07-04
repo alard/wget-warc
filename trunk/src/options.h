@@ -88,7 +88,7 @@ struct options
   char *output_document;	/* The output file to which the
 				   documents will be printed.  */
   char *warc_filename;		/* WARC output filename */
-  char *warc_tempfilename;	/* WARC temp filename */
+  char *warc_tempdir;	/* WARC temp dir */
   wgint warc_maxsize;           /* WARC max archive size */
   bool warc_compression_enabled;  /* For GZIP compression. */
 
