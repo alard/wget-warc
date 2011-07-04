@@ -287,6 +287,7 @@ static struct cmdline_option option_data[] =
     { "version", 'V', OPT_FUNCALL, (void *) print_version, no_argument },
     { "wait", 'w', OPT_VALUE, "wait", -1 },
     { "waitretry", 0, OPT_VALUE, "waitretry", -1 },
+    { "warc-compression", 0, OPT_BOOLEAN, "warccompression", -1 },
     { "warc-file", 0, OPT_VALUE, "warcfile", -1 },
     { "warc-max-size", 0, OPT_VALUE, "warcmaxsize", -1 },
     { "warc-tempfile", 0, OPT_VALUE, "warctempfile", -1 },
@@ -536,6 +537,8 @@ Download:\n"),
        --unlink                  remove file before clobber.\n"),
     N_("\
        --warc-file=FILENAME      save request/response data to a .warc.gz file.\n"),
+    N_("\
+       --no-warc-compression     do not compress WARC files with GZIP.\n"),
     N_("\
        --warc-max-size=NUMBER    set maximum size of WARC files to NUMBER.\n"),
     N_("\

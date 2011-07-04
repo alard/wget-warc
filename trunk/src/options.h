@@ -90,6 +90,7 @@ struct options
   char *warc_filename;		/* WARC output filename */
   char *warc_tempfilename;	/* WARC temp filename */
   wgint warc_maxsize;           /* WARC max archive size */
+  bool warc_compression_enabled;  /* For GZIP compression. */
 
   char *user;			/* Generic username */
   char *passwd;			/* Generic password */

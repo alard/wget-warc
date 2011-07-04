@@ -106,7 +106,9 @@ bool warc_start_new_file ()
     }
   }
 
-  warc_current_wfile = bless (WFile, new_filename, opt.warc_maxsize, WARC_FILE_WRITER, (disableCompression ? WARC_FILE_UNCOMPRESSED : WARC_FILE_COMPRESSED_GZIP_BEST_COMPRESSION), ".");
+  wfile_comp_t compression = (opt.warc_compression_enabled ? WARC_FILE_COMPRESSED_GZIP_BEST_COMPRESSION : WARC_FILE_UNCOMPRESSED);
+
+  warc_current_wfile = bless (WFile, new_filename, opt.warc_maxsize, WARC_FILE_WRITER, compression, ".");
   if (warc_current_wfile == 0)
   {
     fprintf (stderr, "Error opening WARC file.\n");

@@ -262,6 +262,7 @@ static const struct {
   { "verbose",          NULL,                   cmd_spec_verbose },
   { "wait",             &opt.wait,              cmd_time },
   { "waitretry",        &opt.waitretry,         cmd_time },
+  { "warccompression",  &opt.warc_compression_enabled, cmd_boolean },
   { "warcfile",         &opt.warc_filename,     cmd_file },
   { "warcmaxsize",      &opt.warc_maxsize,      cmd_bytes },
   { "warctempfile",     &opt.warc_tempfilename, cmd_file },
@@ -364,6 +365,7 @@ defaults (void)
   opt.useservertimestamps = true;
 
   opt.warc_maxsize = 1024 * 1024 * 1024;
+  opt.warc_compression_enabled = true;
 }
 
 /* Return the user's home directory (strdup-ed), or NULL if none is
