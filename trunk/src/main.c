@@ -537,6 +537,8 @@ Download:\n"),
     N_("\
        --warc-file=FILENAME      save request/response data to a .warc.gz file.\n"),
     N_("\
+       --warc-max-size=NUMBER    set maximum size of WARC files to NUMBER.\n"),
+    N_("\
        --warc-tempfile=FILENAME  temporary file used by the WARC writer.\n"),
     "\n",
 
