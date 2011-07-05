@@ -2375,16 +2375,20 @@ read_header:
                      _("Location: %s%s\n"),
                      hs->newloc ? escnonprint_uri (hs->newloc) : _("unspecified"),
                      hs->newloc ? _(" [following]") : "");
-          if (keep_alive && !head_only
-              && skip_short_body (sock, contlen, chunked_transfer_encoding))
-            CLOSE_FINISH (sock);
-          else
-            CLOSE_INVALIDATE (sock);
-          xfree_null (type);
-
 
           if (warc_enabled)
           {
+            warc_tmp = warc_tempfile ();
+            /* TODO check WARC error? */
+
+            /* keep response headers */
+            fwrite (head, 1, strlen (head), warc_tmp);
+
+            /* always read response body */
+            flags = 0;
+            fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
+            /* TODO check for errors */
+
             /* create and store response record in WARC */
             /* note: per the WARC standard, the request and response should share
                the same date header. we re-use the timestamp of the request. */
@@ -2397,14 +2401,27 @@ read_header:
             warc_setDate (responseWRecord, warc_timestamp_str);
             warc_setRecordId (responseWRecord, warc_response_uuid);
             warc_setConcurrentTo (responseWRecord, warc_request_uuid);
-            warc_setContentFromString (responseWRecord, head);
+            warc_setContentFromFile (responseWRecord, warc_tmp);
 
             warc_store_record (responseWRecord);
 
             destroy (responseWRecord);
+
+            // destroy has closed the file
+            //if (warc_tmp != 0)
+            //  fclose (warc_tmp);
+          }
+          else
+          {
+            /* with warc disabled, we are not interested in the response body */
+            if (keep_alive && !head_only
+                && skip_short_body (sock, contlen, chunked_transfer_encoding))
+              CLOSE_FINISH (sock);
+            else
+              CLOSE_INVALIDATE (sock);
           }
 
-
+          xfree_null (type);
           xfree (head);
           /* From RFC2616: The status codes 303 and 307 have
              been added for servers that wish to make unambiguously
@@ -2531,41 +2548,59 @@ read_header:
       hs->len = 0;
       hs->res = 0;
       xfree_null (type);
-      if (head_only)
-        /* Pre-1.10 Wget used CLOSE_INVALIDATE here.  Now we trust the
-           servers not to send body in response to a HEAD request, and
-           those that do will likely be caught by test_socket_open.
-           If not, they can be worked around using
-           `--no-http-keep-alive'.  */
-        CLOSE_FINISH (sock);
-      else if (keep_alive
-               && skip_short_body (sock, contlen, chunked_transfer_encoding))
-        /* Successfully skipped the body; also keep using the socket. */
-        CLOSE_FINISH (sock);
-      else
-        CLOSE_INVALIDATE (sock);
-
 
       if (warc_enabled)
       {
+        warc_tmp = warc_tempfile ();
+        /* TODO check WARC error? */
+
+        /* keep response headers */
+        fwrite (head, 1, strlen (head), warc_tmp);
+
+        /* always read response body */
+        flags = 0;
+        fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
+        /* TODO check for errors */
+
         /* create and store response record in WARC */
-        warc_timestamp (warc_timestamp_str);
+        /* note: per the WARC standard, the request and response should share
+           the same date header. we re-use the timestamp of the request. */
         warc_uuid_str (warc_response_uuid);
 
         void * responseWRecord = bless (WRecord);
         warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
-        warc_setTargetUri (responseWRecord, (u->url));
-        warc_setContentType (responseWRecord, ("application/http;msgtype=response"));
-        warc_setDate (responseWRecord, (warc_timestamp_str));
-        warc_setRecordId (responseWRecord, (warc_response_uuid));
-        warc_setConcurrentTo (responseWRecord, (warc_request_uuid));
-        warc_setContentFromString (responseWRecord, (head));
+        warc_setTargetUri (responseWRecord, u->url);
+        warc_setContentType (responseWRecord, "application/http;msgtype=response");
+        warc_setDate (responseWRecord, warc_timestamp_str);
+        warc_setRecordId (responseWRecord, warc_response_uuid);
+        warc_setConcurrentTo (responseWRecord, warc_request_uuid);
+        warc_setContentFromFile (responseWRecord, warc_tmp);
 
         warc_store_record (responseWRecord);
 
         destroy (responseWRecord);
-      }
 
+        // destroy has closed the file
+        //if (warc_tmp != 0)
+        //  fclose (warc_tmp);
+      }
+      else
+      {
+        /* with warc disabled, we are not interested in the response body */
+        if (head_only)
+          /* Pre-1.10 Wget used CLOSE_INVALIDATE here.  Now we trust the
+             servers not to send body in response to a HEAD request, and
+             those that do will likely be caught by test_socket_open.
+             If not, they can be worked around using
+             `--no-http-keep-alive'.  */
+          CLOSE_FINISH (sock);
+        else if (keep_alive
+                 && skip_short_body (sock, contlen, chunked_transfer_encoding))
+          /* Successfully skipped the body; also keep using the socket. */
+          CLOSE_FINISH (sock);
+        else
+          CLOSE_INVALIDATE (sock);
+      }
 
       xfree (head);
       return RETRFINISHED;
