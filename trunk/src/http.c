@@ -2410,6 +2410,8 @@ read_header:
             // destroy has closed the file
             //if (warc_tmp != 0)
             //  fclose (warc_tmp);
+
+            CLOSE_FINISH (sock);
           }
           else
           {
@@ -2583,6 +2585,8 @@ read_header:
         // destroy has closed the file
         //if (warc_tmp != 0)
         //  fclose (warc_tmp);
+
+        CLOSE_FINISH (sock);
       }
       else
       {
