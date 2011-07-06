@@ -9,8 +9,9 @@ void warc_uuid_str (char *id_str);
 
 FILE * warc_tempfile ();
 
-bool warc_write_request_record (char *url, char *timestamp_str, char *request_uuid, FILE *body);
-bool warc_write_response_record (char *url, char *timestamp_str, char *request_uuid, FILE *body);
+bool warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body);
+bool warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body);
+bool warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body);
 
 #endif /* WGET_WARC_H */
 

@@ -278,19 +278,19 @@ warc_tempfile ()
 /* Writes a request record to the WARC file.
    url  is the target uri of the request,
    timestamp_str  is the timestamp of the request (generated with warc_timestamp),
-   request_uuid  is the uuid of the request (generated with warc_uuid_str),
+   concurrent_to_uuid  is the uuid of the request (generated with warc_uuid_str),
    body  is a pointer to a file containing the request headers and body.
    Calling this function will close body.
    Returns true on success, false on error. */
 bool
-warc_write_request_record (char *url, char *timestamp_str, char *request_uuid, FILE *body)
+warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body)
 {
   void * requestWRecord = bless (WRecord);
   warc_setRecordType (requestWRecord, WARC_REQUEST_RECORD);
   warc_setTargetUri (requestWRecord, url);
   warc_setContentType (requestWRecord, "application/http;msgtype=request");
   warc_setDate (requestWRecord, timestamp_str);
-  warc_setRecordId (requestWRecord, request_uuid);
+  warc_setRecordId (requestWRecord, concurrent_to_uuid);
   warc_setContentFromFile (requestWRecord, body);
 
   bool result = warc_store_record (requestWRecord);
@@ -306,13 +306,13 @@ warc_write_request_record (char *url, char *timestamp_str, char *request_uuid, F
    url  is the target uri of the request/response,
    timestamp_str  is the timestamp of the request that generated this response
                   (generated with warc_timestamp),
-   request_uuid  is the uuid of the request for that generated this response
+   concurrent_to_uuid  is the uuid of the request for that generated this response
                  (generated with warc_uuid_str),
    body  is a pointer to a file containing the response headers and body.
    Calling this function will close body.
    Returns true on success, false on error. */
 bool
-warc_write_response_record (char *url, char *timestamp_str, char *request_uuid, FILE *body)
+warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body)
 {
   char response_uuid [48];
   warc_uuid_str (response_uuid);
@@ -323,12 +323,51 @@ warc_write_response_record (char *url, char *timestamp_str, char *request_uuid, 
   warc_setContentType (responseWRecord, "application/http;msgtype=response");
   warc_setDate (responseWRecord, timestamp_str);
   warc_setRecordId (responseWRecord, response_uuid);
-  warc_setConcurrentTo (responseWRecord, request_uuid);
+  warc_setConcurrentTo (responseWRecord, concurrent_to_uuid);
   warc_setContentFromFile (responseWRecord, body);
 
   bool result = warc_store_record (responseWRecord);
 
   destroy (responseWRecord);
+
+  /* destroy has also closed body. */
+
+  return result;
+}
+
+/* Writes a resource record to the WARC file.
+   url  is the target uri of the resource,
+   timestamp_str  is the timestamp (generated with warc_timestamp),
+   concurrent_to_uuid  is the uuid of the request for that generated this resource
+                 (generated with warc_uuid_str) or NULL,
+   body  is a pointer to a file containing the resource data.
+   Calling this function will close body.
+   Returns true on success, false on error. */
+bool
+warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body)
+{
+  char resource_uuid [48];
+  warc_uuid_str (resource_uuid);
+
+  if (timestamp_str == NULL)
+    {
+      timestamp_str = alloca (22);
+      warc_timestamp (timestamp_str);
+    }
+
+  void * resourceWRecord = bless (WRecord);
+  warc_setRecordType (resourceWRecord, WARC_RESOURCE_RECORD);
+  warc_setTargetUri (resourceWRecord, url);
+  warc_setDate (resourceWRecord, timestamp_str);
+  warc_setRecordId (resourceWRecord, resource_uuid);
+  warc_setContentType (resourceWRecord, "application/octet-stream");
+  if (concurrent_to_uuid != NULL)
+    warc_setConcurrentTo (resourceWRecord, concurrent_to_uuid);
+  warc_setContentFromFile (resourceWRecord, body);
+
+  bool result = warc_store_record (resourceWRecord);
+
+  destroy (resourceWRecord);
 
   /* destroy has also closed body. */
 
