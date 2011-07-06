@@ -139,7 +139,7 @@ limit_bandwidth (wgint bytes, struct ptimer *timer)
 
 /* Write data in BUF to OUT.  However, if *SKIP is non-zero, skip that
    amount of data and decrease SKIP.  Increment *TOTAL by the amount
-   of data written.  */
+   of data written.  If OUT2 is not NULL, also write BUF to OUT2.  */
 
 static int
 write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
@@ -165,10 +165,10 @@ write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
   *written += bufsize;
 
   if (out2 != 0)
-  {
-    /* TODO check for WARC write errors? */
-    fwrite (buf, 1, bufsize, out2);
-  }
+    {
+      /* TODO check for WARC write errors? */
+      fwrite (buf, 1, bufsize, out2);
+    }
 
   /* Immediately flush the downloaded data.  This should not hinder
      performance: fast downloads will arrive in large 16K chunks
@@ -203,6 +203,8 @@ write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
    QTYWRITTEN is non-NULL, the value it points to is incremented by
    the amount of data written to disk.  The time it took to download
    the data is stored to ELAPSED.
+
+   If OUT2 is non-NULL, the contents is also written to OUT2.
 
    The function exits and returns the amount of data read.  In case of
    error while reading data, -1 is returned.  In case of error while

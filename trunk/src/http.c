@@ -1988,7 +1988,7 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
     warc_write_request_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
     /* TODO check result */
 
-    /* destroy has also closed warc_tmp. */
+    /* warc_write_request_record has also closed warc_tmp. */
   }
 
 
