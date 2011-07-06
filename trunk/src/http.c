@@ -2669,7 +2669,6 @@ read_header:
     }
 
 
-  /* open temporary file for resposne */
   if (warc_enabled)
     {
       /* Open a temporary file where we can write the response before we
