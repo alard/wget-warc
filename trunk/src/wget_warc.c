@@ -11,6 +11,7 @@
 #include <uuid/uuid.h>
 #include <libgen.h>
 #include <tmpdir.h>
+#include <warc.h>
 
 #include "wget_warc.h"
 
@@ -36,7 +37,7 @@ static int  warc_current_file_number;
 /* Helper functions to fill WRecord objects.
    The warctools library uses its own types for strings and integers.  */
 #define WARC_WRAP_METHOD(name)                                          \
-    bool warc_##name(void *record, char *u8_string)                     \
+    static bool warc_##name(void *record, char *u8_string)              \
     {                                                                   \
       warc_u8_t *wu8_string = (warc_u8_t *)u8_string;                   \
       return WRecord_##name(record, wu8_string, w_strlen(wu8_string));  \
@@ -51,7 +52,7 @@ WARC_WRAP_METHOD (setConcurrentTo)
 WARC_WRAP_METHOD (setContentFromString)
 WARC_WRAP_METHOD (setWarcInfoId)
 
-bool
+static bool
 warc_setContentFromFileName (void *record, char *u8_filename)
 {
   return WRecord_setContentFromFileName (record, u8_filename);
@@ -59,13 +60,13 @@ warc_setContentFromFileName (void *record, char *u8_filename)
 
 /* Use the contents of file as the body of the WARC record.
    Note: calling  destroy (record)  will also close the file. */
-bool
+static bool
 warc_setContentFromFile (void *record, FILE *file)
 {
   return WRecord_setContentFromFile (record, file);
 }
 
-bool
+static bool
 warc_setRecordType (void *record, const warc_rec_t t)
 {
   return WRecord_setRecordType (record, t);
@@ -109,7 +110,7 @@ warc_uuid_str (char *urn_str)
 
    Returns true on success, false otherwise.
    */
-bool
+static bool
 warc_start_new_file ()
 {
   if (opt.warc_filename == NULL)
@@ -192,7 +193,7 @@ warc_start_new_file ()
 /* Writes the record (a WRecord pointer) to the current WARC file.
    If the WARC file is full, the function will open a new file.
    Returns true if the writing was successful, false otherwise. */
-bool
+static bool
 warc_store_record (void * record)
 {
   if (warc_current_wfile != 0)
