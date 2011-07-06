@@ -322,7 +322,9 @@ request_remove_header (struct request *req, char *name)
   p += A_len;                                   \
 } while (0)
 
-/* Construct the request and write it to FD using fd_write.  */
+/* Construct the request and write it to FD using fd_write.
+   If warc_tmp is set to a file pointer, the request string will
+   also be written to that file. */
 
 static int
 request_send (const struct request *req, int fd, FILE * warc_tmp)
@@ -376,11 +378,9 @@ request_send (const struct request *req, int fd, FILE * warc_tmp)
   if (write_error < 0)
     logprintf (LOG_VERBOSE, _("Failed writing HTTP request: %s.\n"),
                fd_errstr (fd));
-  else if (warc_tmp != 0)
-  {
+  else if (warc_tmp != NULL)
     /* TODO check WARC error? */
     fwrite (request_string, 1, size - 1, warc_tmp);
-  }
   return write_error;
 }
 
@@ -451,7 +451,9 @@ register_basic_auth_host (const char *hostname)
 
 /* Send the contents of FILE_NAME to SOCK.  Make sure that exactly
    PROMISED_SIZE bytes are sent over the wire -- if the file is
-   longer, read only that much; if the file is shorter, report an error.  */
+   longer, read only that much; if the file is shorter, report an error.
+   If warc_tmp is set to a file pointer, the post data will
+   also be written to that file.  */
 
 static int
 post_file (int sock, const char *file_name, wgint promised_size, FILE * warc_tmp)
@@ -479,7 +481,7 @@ post_file (int sock, const char *file_name, wgint promised_size, FILE * warc_tmp
           fclose (fp);
           return -1;
         }
-      if (warc_tmp != 0)
+      if (warc_tmp != NULL)
         /* TODO check WARC error? */
         fwrite (chunk, 1, towrite, warc_tmp);
       written += towrite;
@@ -1558,9 +1560,8 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
   char *message;
 
   /* Declare WARC variables. */
-  bool warc_enabled = (opt.warc_filename != 0);
-  
-  FILE * warc_tmp = 0;
+  bool warc_enabled = (opt.warc_filename != NULL);
+  FILE * warc_tmp = NULL;
   char warc_timestamp_str [21];
   char warc_request_uuid [48];
   char warc_response_uuid [48];
@@ -1936,7 +1937,7 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
 #endif /* HAVE_SSL */
     }
 
-  /* open temporary file for request */
+  /* Open the temporary file where we will write the request. */
   if (warc_enabled)
     warc_tmp = warc_tempfile ();
   /* TODO check WARC error? */
@@ -1950,16 +1951,16 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
         {
           DEBUGP (("[POST data: %s]\n", opt.post_data));
           write_error = fd_write (sock, opt.post_data, post_data_size, -1);
-          if (warc_tmp != 0)
+          if (warc_tmp != NULL)
           {
             /* TODO check WARC error? */
             fwrite (opt.post_data, 1, post_data_size, warc_tmp);
           }
         }
       else if (opt.post_file_name && post_data_size != 0)
-      {
-        write_error = post_file (sock, opt.post_file_name, post_data_size, warc_tmp);
-      }
+        {
+          write_error = post_file (sock, opt.post_file_name, post_data_size, warc_tmp);
+        }
     }
 
   if (write_error < 0)
@@ -1967,7 +1968,7 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
       CLOSE_INVALIDATE (sock);
       request_free (req);
 
-      if (warc_tmp != 0)
+      if (warc_tmp != NULL)
         fclose (warc_tmp);
 
       return WRITEFAILED;
@@ -1981,7 +1982,7 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
 
   if (warc_enabled)
   {
-    /* create and store request record in WARC */
+    /* Create a request record and store it in the WARC file. */
     warc_timestamp (warc_timestamp_str);
     warc_uuid_str (warc_request_uuid);
 
@@ -1997,9 +1998,7 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
 
     destroy (requestWRecord);
 
-    // destroy has closed the file
-    //if (warc_tmp != 0)
-    //  fclose (warc_tmp);
+    /* destroy has also closed warc_tmp. */
   }
 
 
@@ -2376,52 +2375,54 @@ read_header:
                      hs->newloc ? escnonprint_uri (hs->newloc) : _("unspecified"),
                      hs->newloc ? _(" [following]") : "");
 
+          /* Normally we are not interested in the response body of a redirect.
+             But if we are writing a WARC file we are: we like to keep everyting.  */
           if (warc_enabled)
-          {
-            warc_tmp = warc_tempfile ();
-            /* TODO check WARC error? */
+            {
+              /* Open a temporary file where we can write the response before we
+                 add it to the WARC record.  */
+              warc_tmp = warc_tempfile ();
+              /* TODO check WARC error? */
 
-            /* keep response headers */
-            fwrite (head, 1, strlen (head), warc_tmp);
+              /* We should keep the response headers for the WARC record.  */
+              fwrite (head, 1, strlen (head), warc_tmp);
 
-            /* always read response body */
-            flags = 0;
-            fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
-            /* TODO check for errors */
+              /* Read the response body and add it to warc_tmp.  */
+              flags = 0;
+              fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
+              /* TODO check for errors */
 
-            /* create and store response record in WARC */
-            /* note: per the WARC standard, the request and response should share
-               the same date header. we re-use the timestamp of the request. */
-            warc_uuid_str (warc_response_uuid);
+              /* Create a response record and write it to the WARC file.
+                 Note: per the WARC standard, the request and response should share
+                 the same date header.  We re-use the timestamp of the request.  */
+              warc_uuid_str (warc_response_uuid);
 
-            void * responseWRecord = bless (WRecord);
-            warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
-            warc_setTargetUri (responseWRecord, u->url);
-            warc_setContentType (responseWRecord, "application/http;msgtype=response");
-            warc_setDate (responseWRecord, warc_timestamp_str);
-            warc_setRecordId (responseWRecord, warc_response_uuid);
-            warc_setConcurrentTo (responseWRecord, warc_request_uuid);
-            warc_setContentFromFile (responseWRecord, warc_tmp);
+              void * responseWRecord = bless (WRecord);
+              warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
+              warc_setTargetUri (responseWRecord, u->url);
+              warc_setContentType (responseWRecord, "application/http;msgtype=response");
+              warc_setDate (responseWRecord, warc_timestamp_str);
+              warc_setRecordId (responseWRecord, warc_response_uuid);
+              warc_setConcurrentTo (responseWRecord, warc_request_uuid);
+              warc_setContentFromFile (responseWRecord, warc_tmp);
 
-            warc_store_record (responseWRecord);
+              warc_store_record (responseWRecord);
 
-            destroy (responseWRecord);
+              destroy (responseWRecord);
 
-            // destroy has closed the file
-            //if (warc_tmp != 0)
-            //  fclose (warc_tmp);
+              /* destroy has also closed warc_tmp. */
 
-            CLOSE_FINISH (sock);
-          }
-          else
-          {
-            /* with warc disabled, we are not interested in the response body */
-            if (keep_alive && !head_only
-                && skip_short_body (sock, contlen, chunked_transfer_encoding))
               CLOSE_FINISH (sock);
-            else
-              CLOSE_INVALIDATE (sock);
-          }
+            }
+          else
+            {
+              /* Since WARC is disabled, we are not interested in the response body.  */
+              if (keep_alive && !head_only
+                  && skip_short_body (sock, contlen, chunked_transfer_encoding))
+                CLOSE_FINISH (sock);
+              else
+                CLOSE_INVALIDATE (sock);
+            }
 
           xfree_null (type);
           xfree (head);
@@ -2551,60 +2552,62 @@ read_header:
       hs->res = 0;
       xfree_null (type);
 
+      /* Normally we are not interested in the response body of a error responses.
+         But if we are writing a WARC file we are: we like to keep everyting.  */
       if (warc_enabled)
-      {
-        warc_tmp = warc_tempfile ();
-        /* TODO check WARC error? */
+        {
+          /* Open a temporary file where we can write the response before we
+             add it to the WARC record.  */
+          warc_tmp = warc_tempfile ();
+          /* TODO check WARC error? */
 
-        /* keep response headers */
-        fwrite (head, 1, strlen (head), warc_tmp);
+          /* We should keep the response headers for the WARC record.  */
+          fwrite (head, 1, strlen (head), warc_tmp);
 
-        /* always read response body */
-        flags = 0;
-        fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
-        /* TODO check for errors */
+          /* Read the response body and add it to warc_tmp.  */
+          flags = 0;
+          fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
+          /* TODO check for errors */
 
-        /* create and store response record in WARC */
-        /* note: per the WARC standard, the request and response should share
-           the same date header. we re-use the timestamp of the request. */
-        warc_uuid_str (warc_response_uuid);
+          /* Create a response record and write it to the WARC file.
+             Note: per the WARC standard, the request and response should share
+             the same date header.  We re-use the timestamp of the request.  */
+          warc_uuid_str (warc_response_uuid);
 
-        void * responseWRecord = bless (WRecord);
-        warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
-        warc_setTargetUri (responseWRecord, u->url);
-        warc_setContentType (responseWRecord, "application/http;msgtype=response");
-        warc_setDate (responseWRecord, warc_timestamp_str);
-        warc_setRecordId (responseWRecord, warc_response_uuid);
-        warc_setConcurrentTo (responseWRecord, warc_request_uuid);
-        warc_setContentFromFile (responseWRecord, warc_tmp);
+          void * responseWRecord = bless (WRecord);
+          warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
+          warc_setTargetUri (responseWRecord, u->url);
+          warc_setContentType (responseWRecord, "application/http;msgtype=response");
+          warc_setDate (responseWRecord, warc_timestamp_str);
+          warc_setRecordId (responseWRecord, warc_response_uuid);
+          warc_setConcurrentTo (responseWRecord, warc_request_uuid);
+          warc_setContentFromFile (responseWRecord, warc_tmp);
 
-        warc_store_record (responseWRecord);
+          warc_store_record (responseWRecord);
 
-        destroy (responseWRecord);
+          destroy (responseWRecord);
 
-        // destroy has closed the file
-        //if (warc_tmp != 0)
-        //  fclose (warc_tmp);
+          /* destroy has also closed warc_tmp. */
 
-        CLOSE_FINISH (sock);
-      }
+          CLOSE_FINISH (sock);
+        }
       else
-      {
-        /* with warc disabled, we are not interested in the response body */
-        if (head_only)
-          /* Pre-1.10 Wget used CLOSE_INVALIDATE here.  Now we trust the
-             servers not to send body in response to a HEAD request, and
-             those that do will likely be caught by test_socket_open.
-             If not, they can be worked around using
-             `--no-http-keep-alive'.  */
-          CLOSE_FINISH (sock);
-        else if (keep_alive
-                 && skip_short_body (sock, contlen, chunked_transfer_encoding))
-          /* Successfully skipped the body; also keep using the socket. */
-          CLOSE_FINISH (sock);
-        else
-          CLOSE_INVALIDATE (sock);
-      }
+        {
+          /* Since WARC is disabled, we are not interested in the response body.  */
+          if (head_only)
+            /* Pre-1.10 Wget used CLOSE_INVALIDATE here.  Now we trust the
+               servers not to send body in response to a HEAD request, and
+               those that do will likely be caught by test_socket_open.
+               If not, they can be worked around using
+               `--no-http-keep-alive'.  */
+            CLOSE_FINISH (sock);
+          else if (keep_alive
+                   && skip_short_body (sock, contlen, chunked_transfer_encoding))
+            /* Successfully skipped the body; also keep using the socket. */
+            CLOSE_FINISH (sock);
+          else
+            CLOSE_INVALIDATE (sock);
+        }
 
       xfree (head);
       return RETRFINISHED;
@@ -2699,13 +2702,15 @@ read_header:
 
   /* open temporary file for resposne */
   if (warc_enabled)
-  {
-    warc_tmp = warc_tempfile ();
-    /* TODO check WARC error? */
+    {
+      /* Open a temporary file where we can write the response before we
+         add it to the WARC record.  */
+      warc_tmp = warc_tempfile ();
+      /* TODO check WARC error? */
 
-    /* keep response headers */
-    fwrite (head, 1, strlen (head), warc_tmp);
-  }
+      /* We should keep the response headers for the WARC record.  */
+      fwrite (head, 1, strlen (head), warc_tmp);
+    }
 
 
   /* This confuses the timestamping code that checks for file size.
@@ -2733,6 +2738,9 @@ read_header:
 
   hs->len = hs->restval;
   hs->rd_size = 0;
+  /* Download the response body and write it to fp.
+     If we are working on a WARC file, we simultaneously write the
+     response body to warc_tmp.  */
   hs->res = fd_read_body (sock, fp, contlen != -1 ? contlen : 0,
                           hs->restval, &hs->rd_size, &hs->len, &hs->dltime,
                           flags, warc_tmp);
@@ -2750,28 +2758,27 @@ read_header:
 
 
   if (warc_enabled)
-  {
-    /* create and store response record in WARC */
-    warc_timestamp (warc_timestamp_str);
-    warc_uuid_str (warc_response_uuid);
+    {
+      /* Create a response record and write it to the WARC file.
+         Note: per the WARC standard, the request and response should share
+         the same date header.  We re-use the timestamp of the request.  */
+      warc_uuid_str (warc_response_uuid);
 
-    void * responseWRecord = bless (WRecord);
-    warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
-    warc_setTargetUri (responseWRecord, u->url);
-    warc_setContentType (responseWRecord, "application/http;msgtype=response");
-    warc_setDate (responseWRecord, warc_timestamp_str);
-    warc_setRecordId (responseWRecord, warc_response_uuid);
-    warc_setConcurrentTo (responseWRecord, warc_request_uuid);
-    warc_setContentFromFile (responseWRecord, warc_tmp);
+      void * responseWRecord = bless (WRecord);
+      warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
+      warc_setTargetUri (responseWRecord, u->url);
+      warc_setContentType (responseWRecord, "application/http;msgtype=response");
+      warc_setDate (responseWRecord, warc_timestamp_str);
+      warc_setRecordId (responseWRecord, warc_response_uuid);
+      warc_setConcurrentTo (responseWRecord, warc_request_uuid);
+      warc_setContentFromFile (responseWRecord, warc_tmp);
 
-    warc_store_record (responseWRecord);
+      warc_store_record (responseWRecord);
 
-    destroy (responseWRecord);
+      destroy (responseWRecord);
 
-    // destroy has closed the file
-    //if (warc_tmp != 0)
-    //  fclose (warc_tmp);
-  }
+      /* destroy has also closed warc_tmp. */
+    }
 
 
   if (!output_stream)
@@ -2803,8 +2810,8 @@ http_loop (struct url *u, struct url *original_url, char **newloc,
   bool force_full_retrieve = false;
 
 
-  /* WARC: always retrieve the whole file */
-  if (opt.warc_filename != 0)
+  /* If we are writing to a WARC file: always retrieve the whole file. */
+  if (opt.warc_filename != NULL)
     force_full_retrieve = true;
 
 

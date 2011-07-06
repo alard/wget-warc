@@ -1,3 +1,4 @@
+/* Utility functions for writing WARC files. */
 #define _GNU_SOURCE
 
 #include "wget.h"
@@ -13,13 +14,25 @@
 
 extern char *version_string;
 
-/* set by main in main.c */
+/* Set by main in main.c */
 extern char *program_argstring;
 
+
+/* The current WARC file (or NULL, if WARC is disabled).
+   This is a pointer to a WFile object. */
 static void *warc_current_wfile;
+
+/* The record id of the warcinfo record of the current WARC file.  */
 static char *warc_current_winfo_uuid_str;
+
+/* The serial number of the current WARC file.  This number is
+   incremented each time a new file is opened and is used in the
+   WARC file's filename. */
 static int  warc_current_file_number;
 
+
+/* Helper functions to fill WRecord objects.
+   The warctools library uses its own types for strings and integers.  */
 #define WARC_WRAP_METHOD(name)                                          \
     bool warc_##name(void *record, char *u8_string)                     \
     {                                                                   \
@@ -27,31 +40,42 @@ static int  warc_current_file_number;
       return WRecord_##name(record, wu8_string, w_strlen(wu8_string));  \
     }
 
-WARC_WRAP_METHOD(setTargetUri)
-WARC_WRAP_METHOD(setContentType)
-WARC_WRAP_METHOD(setDate)
-WARC_WRAP_METHOD(setRecordId)
-WARC_WRAP_METHOD(setFilename)
-WARC_WRAP_METHOD(setConcurrentTo)
-WARC_WRAP_METHOD(setContentFromString)
-WARC_WRAP_METHOD(setWarcInfoId)
+WARC_WRAP_METHOD (setTargetUri)
+WARC_WRAP_METHOD (setContentType)
+WARC_WRAP_METHOD (setDate)
+WARC_WRAP_METHOD (setRecordId)
+WARC_WRAP_METHOD (setFilename)
+WARC_WRAP_METHOD (setConcurrentTo)
+WARC_WRAP_METHOD (setContentFromString)
+WARC_WRAP_METHOD (setWarcInfoId)
 
-bool warc_setContentFromFileName(void *record, char *u8_filename)
+bool
+warc_setContentFromFileName (void *record, char *u8_filename)
 {
-  return WRecord_setContentFromFileName(record, u8_filename);
+  return WRecord_setContentFromFileName (record, u8_filename);
 }
 
-bool warc_setContentFromFile(void *record, FILE *file)
+/* Use the contents of file as the body of the WARC record.
+   Note: calling  destroy (record)  will also close the file. */
+bool
+warc_setContentFromFile (void *record, FILE *file)
 {
-  return WRecord_setContentFromFile(record, file);
+  return WRecord_setContentFromFile (record, file);
 }
 
-bool warc_setRecordType(void *record, const warc_rec_t t)
+bool
+warc_setRecordType (void *record, const warc_rec_t t)
 {
-  return WRecord_setRecordType(record, t);
+  return WRecord_setRecordType (record, t);
 }
 
-void warc_timestamp (char *timestamp)
+
+/* Fills timestamp with the current time and date.
+   The UTC time is formatted following ISO 8601, as required
+   for use in the WARC-Date header.
+   The timestamp will be 21 characters long. */
+void
+warc_timestamp (char *timestamp)
 {
   time_t rawtime;
   struct tm * timeinfo;
@@ -60,7 +84,11 @@ void warc_timestamp (char *timestamp)
   strftime (timestamp, 21, "%Y-%m-%dT%H:%M:%SZ", timeinfo);
 }
 
-void warc_uuid_str (char *urn_str)
+/* Fills urn_str with a UUID in the format required
+   for the WARC-Record-Id header.
+   The string will be 47 characters long. */
+void
+warc_uuid_str (char *urn_str)
 {
   uuid_t record_id;
   uuid_generate (record_id);
@@ -69,12 +97,23 @@ void warc_uuid_str (char *urn_str)
   sprintf(urn_str, "<urn:uuid:%s>", uuid_str);
 }
 
-bool warc_start_new_file ()
+/* Opens a new WARC file.
+   
+   This method will:
+   1. close the current WARC file (if there is one);
+   2. increment warc_current_file_number;
+   3. open a new WARC file;
+   4. write the initial warcinfo record.
+
+   Returns true on success, false otherwise.
+   */
+bool
+warc_start_new_file ()
 {
-  if (opt.warc_filename == 0)
+  if (opt.warc_filename == NULL)
     return false;
 
-  if (warc_current_wfile != 0)
+  if (warc_current_wfile != NULL)
     destroy (warc_current_wfile);
   if (warc_current_winfo_uuid_str)
     free (warc_current_winfo_uuid_str);
@@ -89,22 +128,18 @@ bool warc_start_new_file ()
 
   /* If max size is enabled, we add a serial number to the file names. */
   if (opt.warc_maxsize > 0)
-  {
     sprintf (new_filename, "%s-%05d.%s", opt.warc_filename, warc_current_file_number, extension);
-  }
   else
-  {
     sprintf (new_filename, "%s.%s", opt.warc_filename, extension);
-  }
 
   wfile_comp_t compression = (opt.warc_compression_enabled ? WARC_FILE_COMPRESSED_GZIP_BEST_COMPRESSION : WARC_FILE_UNCOMPRESSED);
 
   warc_current_wfile = bless (WFile, new_filename, opt.warc_maxsize, WARC_FILE_WRITER, compression, ".");
-  if (warc_current_wfile == 0)
-  {
-    fprintf (stderr, "Error opening WARC file.\n");
-    return false;
-  }
+  if (warc_current_wfile == NULL)
+    {
+      fprintf (stderr, "Error opening WARC file.\n");
+      return false;
+    }
 
   /* Write warc-info record as the first record of the file. */
   /* We add the record id of this info record to the other records in the file. */
@@ -131,12 +166,12 @@ bool warc_start_new_file ()
 
   /* Returns true on error. */
   if ( WFile_storeRecord (warc_current_wfile, infoWRecord) )
-  {
-    fprintf(stderr, "Error writing winfo record to WARC file.\n");
-    destroy (infoWRecord);
-    free (new_filename_copy);
-    return false;
-  }
+    {
+      fprintf(stderr, "Error writing winfo record to WARC file.\n");
+      destroy (infoWRecord);
+      free (new_filename_copy);
+      return false;
+    }
 
   destroy (infoWRecord);
   free (new_filename_copy);
@@ -144,65 +179,79 @@ bool warc_start_new_file ()
   return true;
 }
 
-bool warc_store_record (void * record)
+/* Writes the record (a WRecord pointer) to the current WARC file.
+   If the WARC file is full, the function will open a new file.
+   Returns true if the writing was successful, false otherwise. */
+bool
+warc_store_record (void * record)
 {
   if (warc_current_wfile != 0)
-  {
-    /* If the WARC file is full, start a new file. */
-    if ( WFile_isFull (warc_current_wfile) )
     {
-      if (! warc_start_new_file ())
-      {
-        fprintf(stderr, "Could not open new WARC file.\n");
-        return false;
-      }
+      /* If the WARC file is full, start a new file. */
+      if ( WFile_isFull (warc_current_wfile) )
+        {
+          if (! warc_start_new_file ())
+            {
+              fprintf(stderr, "Could not open new WARC file.\n");
+              return false;
+            }
+        }
+
+      /* Point to the current info record. */
+      warc_setWarcInfoId (record, warc_current_winfo_uuid_str);
+
+      /* This will return true if writing failed. */
+      if ( WFile_storeRecord (warc_current_wfile, record) )
+        {
+          fprintf(stderr, "Error writing record to WARC file.\n");
+          return false;
+        }
+
+      return true;
     }
-
-    /* Point to the current info record. */
-    warc_setWarcInfoId (record, warc_current_winfo_uuid_str);
-
-    /* This will return true if writing failed. */
-    if ( WFile_storeRecord (warc_current_wfile, record) )
+  else
     {
-      fprintf(stderr, "Error writing record to WARC file.\n");
+      fprintf(stderr, "Called warc_store_record without open WFile.\n");
       return false;
     }
-
-    return true;
-  }
-  else
-  {
-    fprintf(stderr, "Called warc_store_record without open WFile.\n");
-    return false;
-  }
 }
 
-void warc_init ()
+/* Initializes the WARC writer (if opt.warc_filename is set).
+   This should be called before any WARC record is written. */
+void
+warc_init ()
 {
-  if (opt.warc_filename != 0)
-  {
-    warc_current_file_number = -1;
-    if (! warc_start_new_file ())
+  if (opt.warc_filename != NULL)
     {
-      fprintf(stderr, "Could not open WARC file.\n");
-      opt.warc_filename = 0;
+      warc_current_file_number = -1;
+      if (! warc_start_new_file ())
+        {
+          fprintf(stderr, "Could not open WARC file.\n");
+          opt.warc_filename = 0;
+        }
     }
-  }
 }
 
-void warc_close ()
+/* Finishes the WARC writing.
+   This should be called at the end of the program. */
+void
+warc_close ()
 {
-  if (warc_current_wfile != 0)
-  {
-    free (warc_current_winfo_uuid_str);
-    destroy (warc_current_wfile);
-  }
+  if (warc_current_wfile != NULL)
+    {
+      free (warc_current_winfo_uuid_str);
+      destroy (warc_current_wfile);
+    }
 }
 
-FILE * warc_tempfile ()
+/* Creates a temporary file for writing WARC output.
+   The temporary file will be created in opt.warc_tempdir.
+   Returns the pointer to the temporary file, or NULL. */
+FILE *
+warc_tempfile ()
 {
-  if (opt.warc_tempdir == 0)
-    return 0;
+  if (opt.warc_tempdir == NULL)
+    return NULL;
 
   int dirlen = strlen (opt.warc_tempdir);
   char *filename = alloca (dirlen + 18);
@@ -210,10 +259,10 @@ FILE * warc_tempfile ()
 
   int fd = mkstemp (filename);
   if (fd < 0)
-    return 0;
+    return NULL;
 
   if (unlink (filename) < 0)
-    return 0;
+    return NULL;
 
   return fdopen (fd, "wb+");
   /* TODO check for errors */
