@@ -21,3 +21,6 @@ bool warc_setRecordType (void *record, const warc_rec_t t);
 
 FILE * warc_tempfile ();
 
+bool warc_write_request_record (char *url, char *timestamp_str, char *request_uuid, FILE *body);
+bool warc_write_response_record (char *url, char *timestamp_str, char *request_uuid, FILE *body);
+

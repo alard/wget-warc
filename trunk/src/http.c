@@ -1564,7 +1564,6 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
   FILE * warc_tmp = NULL;
   char warc_timestamp_str [21];
   char warc_request_uuid [48];
-  char warc_response_uuid [48];
 
   /* Whether this connection will be kept alive after the HTTP request
      is done. */
@@ -1982,21 +1981,13 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
 
   if (warc_enabled)
   {
-    /* Create a request record and store it in the WARC file. */
+    /* Generate a timestamp and uuid for this request. */
     warc_timestamp (warc_timestamp_str);
     warc_uuid_str (warc_request_uuid);
 
-    void * requestWRecord = bless (WRecord);
-    warc_setRecordType (requestWRecord, WARC_REQUEST_RECORD);
-    warc_setTargetUri (requestWRecord, u->url);
-    warc_setContentType (requestWRecord, "application/http;msgtype=request");
-    warc_setDate (requestWRecord, warc_timestamp_str);
-    warc_setRecordId (requestWRecord, warc_request_uuid);
-    warc_setContentFromFile (requestWRecord, warc_tmp);
-
-    warc_store_record (requestWRecord);
-
-    destroy (requestWRecord);
+    /* Create a request record and store it in the WARC file. */
+    warc_write_request_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+    /* TODO check result */
 
     /* destroy has also closed warc_tmp. */
   }
@@ -2394,23 +2385,12 @@ read_header:
 
               /* Create a response record and write it to the WARC file.
                  Note: per the WARC standard, the request and response should share
-                 the same date header.  We re-use the timestamp of the request.  */
-              warc_uuid_str (warc_response_uuid);
+                 the same date header.  We re-use the timestamp of the request.
+                 The response record should also refer to the uuid of the request.  */
+              warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+              /* TODO check result */
 
-              void * responseWRecord = bless (WRecord);
-              warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
-              warc_setTargetUri (responseWRecord, u->url);
-              warc_setContentType (responseWRecord, "application/http;msgtype=response");
-              warc_setDate (responseWRecord, warc_timestamp_str);
-              warc_setRecordId (responseWRecord, warc_response_uuid);
-              warc_setConcurrentTo (responseWRecord, warc_request_uuid);
-              warc_setContentFromFile (responseWRecord, warc_tmp);
-
-              warc_store_record (responseWRecord);
-
-              destroy (responseWRecord);
-
-              /* destroy has also closed warc_tmp. */
+              /* warc_write_response_record has closed warc_tmp. */
 
               CLOSE_FINISH (sock);
             }
@@ -2571,23 +2551,12 @@ read_header:
 
           /* Create a response record and write it to the WARC file.
              Note: per the WARC standard, the request and response should share
-             the same date header.  We re-use the timestamp of the request.  */
-          warc_uuid_str (warc_response_uuid);
+             the same date header.  We re-use the timestamp of the request.
+             The response record should also refer to the uuid of the request.  */
+          warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+          /* TODO check result */
 
-          void * responseWRecord = bless (WRecord);
-          warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
-          warc_setTargetUri (responseWRecord, u->url);
-          warc_setContentType (responseWRecord, "application/http;msgtype=response");
-          warc_setDate (responseWRecord, warc_timestamp_str);
-          warc_setRecordId (responseWRecord, warc_response_uuid);
-          warc_setConcurrentTo (responseWRecord, warc_request_uuid);
-          warc_setContentFromFile (responseWRecord, warc_tmp);
-
-          warc_store_record (responseWRecord);
-
-          destroy (responseWRecord);
-
-          /* destroy has also closed warc_tmp. */
+          /* warc_write_response_record has closed warc_tmp. */
 
           CLOSE_FINISH (sock);
         }
@@ -2761,23 +2730,12 @@ read_header:
     {
       /* Create a response record and write it to the WARC file.
          Note: per the WARC standard, the request and response should share
-         the same date header.  We re-use the timestamp of the request.  */
-      warc_uuid_str (warc_response_uuid);
+         the same date header.  We re-use the timestamp of the request.
+         The response record should also refer to the uuid of the request.  */
+      warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+      /* TODO check result */
 
-      void * responseWRecord = bless (WRecord);
-      warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
-      warc_setTargetUri (responseWRecord, u->url);
-      warc_setContentType (responseWRecord, "application/http;msgtype=response");
-      warc_setDate (responseWRecord, warc_timestamp_str);
-      warc_setRecordId (responseWRecord, warc_response_uuid);
-      warc_setConcurrentTo (responseWRecord, warc_request_uuid);
-      warc_setContentFromFile (responseWRecord, warc_tmp);
-
-      warc_store_record (responseWRecord);
-
-      destroy (responseWRecord);
-
-      /* destroy has also closed warc_tmp. */
+      /* warc_write_response_record has closed warc_tmp. */
     }
 
 

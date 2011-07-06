@@ -268,3 +268,63 @@ warc_tempfile ()
   /* TODO check for errors */
 }
 
+/* Writes a request record to the WARC file.
+   url  is the target uri of the request,
+   timestamp_str  is the timestamp of the request (generated with warc_timestamp),
+   request_uuid  is the uuid of the request (generated with warc_uuid_str),
+   body  is a pointer to a file containing the request headers and body.
+   Calling this function will close body.
+   Returns true on success, false on error. */
+bool
+warc_write_request_record (char *url, char *timestamp_str, char *request_uuid, FILE *body)
+{
+  void * requestWRecord = bless (WRecord);
+  warc_setRecordType (requestWRecord, WARC_REQUEST_RECORD);
+  warc_setTargetUri (requestWRecord, url);
+  warc_setContentType (requestWRecord, "application/http;msgtype=request");
+  warc_setDate (requestWRecord, timestamp_str);
+  warc_setRecordId (requestWRecord, request_uuid);
+  warc_setContentFromFile (requestWRecord, body);
+
+  warc_store_record (requestWRecord);
+
+  destroy (requestWRecord);
+
+  /* destroy has also closed body. */
+
+  return true;
+}
+
+/* Writes a response record to the WARC file.
+   url  is the target uri of the request/response,
+   timestamp_str  is the timestamp of the request that generated this response
+                  (generated with warc_timestamp),
+   request_uuid  is the uuid of the request for that generated this response
+                 (generated with warc_uuid_str),
+   body  is a pointer to a file containing the response headers and body.
+   Calling this function will close body.
+   Returns true on success, false on error. */
+bool
+warc_write_response_record (char *url, char *timestamp_str, char *request_uuid, FILE *body)
+{
+  char response_uuid [48];
+  warc_uuid_str (response_uuid);
+
+  void * responseWRecord = bless (WRecord);
+  warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
+  warc_setTargetUri (responseWRecord, url);
+  warc_setContentType (responseWRecord, "application/http;msgtype=response");
+  warc_setDate (responseWRecord, timestamp_str);
+  warc_setRecordId (responseWRecord, response_uuid);
+  warc_setConcurrentTo (responseWRecord, request_uuid);
+  warc_setContentFromFile (responseWRecord, body);
+
+  warc_store_record (responseWRecord);
+
+  destroy (responseWRecord);
+
+  /* destroy has also closed body. */
+
+  return true;
+}
+
