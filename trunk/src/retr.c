@@ -188,7 +188,7 @@ write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
 #endif /* ndef __VMS */
   if (ferror (out))
     return -1;
-  else if (ferror (out2))
+  else if (out2 != NULL && ferror (out2))
     return -2;
   else
     return 0;
