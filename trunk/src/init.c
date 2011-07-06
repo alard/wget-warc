@@ -366,7 +366,7 @@ defaults (void)
 
   opt.warc_maxsize = 1024 * 1024 * 1024;
   opt.warc_compression_enabled = true;
-  opt.warc_tempdir = ".";
+  opt.warc_tempdir = NULL;
 }
 
 /* Return the user's home directory (strdup-ed), or NULL if none is

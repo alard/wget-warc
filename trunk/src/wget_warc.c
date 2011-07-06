@@ -9,6 +9,8 @@
 #include <strings.h>
 #include <time.h>
 #include <uuid/uuid.h>
+#include <libgen.h>
+#include <tmpdir.h>
 
 #include "wget_warc.h"
 
@@ -134,7 +136,13 @@ warc_start_new_file ()
 
   wfile_comp_t compression = (opt.warc_compression_enabled ? WARC_FILE_COMPRESSED_GZIP_BEST_COMPRESSION : WARC_FILE_UNCOMPRESSED);
 
-  warc_current_wfile = bless (WFile, new_filename, opt.warc_maxsize, WARC_FILE_WRITER, compression, ".");
+  /* Find the temporary directory. */
+  char tmpdir_filename[100];
+  if (path_search (tmpdir_filename, 100, opt.warc_tempdir, "wget", true) == -1)
+    return false;
+  char *warc_tmpdir = dirname (tmpdir_filename);
+
+  warc_current_wfile = bless (WFile, new_filename, opt.warc_maxsize, WARC_FILE_WRITER, compression, warc_tmpdir);
   if (warc_current_wfile == NULL)
     {
       fprintf (stderr, "Error opening WARC file.\n");
@@ -250,12 +258,9 @@ warc_close ()
 FILE *
 warc_tempfile ()
 {
-  if (opt.warc_tempdir == NULL)
+  char filename[100];
+  if (path_search (filename, 100, opt.warc_tempdir, "wget", true) == -1)
     return NULL;
-
-  int dirlen = strlen (opt.warc_tempdir);
-  char *filename = alloca (dirlen + 18);
-  sprintf (filename, "%s/.wget_warc_XXXXXX", opt.warc_tempdir);
 
   int fd = mkstemp (filename);
   if (fd < 0)
