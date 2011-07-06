@@ -378,8 +378,12 @@ request_send (const struct request *req, int fd, FILE * warc_tmp)
     logprintf (LOG_VERBOSE, _("Failed writing HTTP request: %s.\n"),
                fd_errstr (fd));
   else if (warc_tmp != NULL)
-    /* TODO check WARC error? */
-    fwrite (request_string, 1, size - 1, warc_tmp);
+    {
+      /* Write a copy of the data to the WARC record. */
+      int warc_tmp_written = fwrite (request_string, 1, size - 1, warc_tmp);
+      if (warc_tmp_written != size - 1)
+        return -2;
+    }
   return write_error;
 }
 
@@ -481,8 +485,15 @@ post_file (int sock, const char *file_name, wgint promised_size, FILE * warc_tmp
           return -1;
         }
       if (warc_tmp != NULL)
-        /* TODO check WARC error? */
-        fwrite (chunk, 1, towrite, warc_tmp);
+        {
+          /* Write a copy of the data to the WARC record. */
+          int warc_tmp_written = fwrite (chunk, 1, towrite, warc_tmp);
+          if (warc_tmp_written != towrite)
+            {
+              fclose (fp);
+              return -2;
+            }
+        }
       written += towrite;
     }
   fclose (fp);
@@ -1937,8 +1948,15 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
 
   /* Open the temporary file where we will write the request. */
   if (warc_enabled)
-    warc_tmp = warc_tempfile ();
-  /* TODO check WARC error? */
+    {
+      warc_tmp = warc_tempfile ();
+      if (warc_tmp == NULL)
+        {
+          CLOSE_INVALIDATE (sock);
+          request_free (req);
+          return WARC_TMP_FOPENERR;
+        }
+    }
 
   /* Send the request to server.  */
   write_error = request_send (req, sock, warc_tmp);
@@ -1949,11 +1967,13 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
         {
           DEBUGP (("[POST data: %s]\n", opt.post_data));
           write_error = fd_write (sock, opt.post_data, post_data_size, -1);
-          if (warc_tmp != NULL)
-          {
-            /* TODO check WARC error? */
-            fwrite (opt.post_data, 1, post_data_size, warc_tmp);
-          }
+          if (write_error >= 0 && warc_tmp != NULL)
+            {
+              /* Write a copy of the data to the WARC record. */
+              int warc_tmp_written = fwrite (opt.post_data, 1, post_data_size, warc_tmp);
+              if (warc_tmp_written != post_data_size)
+                write_error = -2;
+            }
         }
       else if (opt.post_file_name && post_data_size != 0)
         {
@@ -1969,7 +1989,10 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
       if (warc_tmp != NULL)
         fclose (warc_tmp);
 
-      return WRITEFAILED;
+      if (write_error == -2)
+        return WARC_TMP_FWRITEERR;
+      else
+        return WRITEFAILED;
     }
   logprintf (LOG_VERBOSE, _("%s request sent, awaiting response... "),
              proxy ? "Proxy" : "HTTP");
@@ -1979,17 +2002,22 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
 
 
   if (warc_enabled)
-  {
-    /* Generate a timestamp and uuid for this request. */
-    warc_timestamp (warc_timestamp_str);
-    warc_uuid_str (warc_request_uuid);
+    {
+      /* Generate a timestamp and uuid for this request. */
+      warc_timestamp (warc_timestamp_str);
+      warc_uuid_str (warc_request_uuid);
 
-    /* Create a request record and store it in the WARC file. */
-    warc_write_request_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
-    /* TODO check result */
+      /* Create a request record and store it in the WARC file. */
+      bool warc_result = warc_write_request_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+      if (! warc_result)
+        {
+          CLOSE_INVALIDATE (sock);
+          request_free (req);
+          return WARC_ERR;
+        }
 
-    /* warc_write_request_record has also closed warc_tmp. */
-  }
+      /* warc_write_request_record has also closed warc_tmp. */
+    }
 
 
 read_header:
@@ -2371,27 +2399,64 @@ read_header:
             {
               /* Open a temporary file where we can write the response before we
                  add it to the WARC record.  */
+              int warcerr = 0;
               warc_tmp = warc_tempfile ();
-              /* TODO check WARC error? */
+              if (warc_tmp == NULL)
+                warcerr = WARC_TMP_FOPENERR;
 
-              /* We should keep the response headers for the WARC record.  */
-              fwrite (head, 1, strlen (head), warc_tmp);
+              if (warcerr == 0)
+                {
+                  /* We should keep the response headers for the WARC record.  */
+                  int head_len = strlen (head);
+                  int warc_tmp_written = fwrite (head, 1, head_len, warc_tmp);
+                  if (warc_tmp_written != head_len)
+                    warcerr = WARC_TMP_FWRITEERR;
+                }
+
+              if (warcerr != 0)
+                {
+                  CLOSE_INVALIDATE (sock);
+                  xfree_null (type);
+                  xfree (head);
+                  if (warc_tmp != NULL)
+                    fclose (warc_tmp);
+                  return warcerr;
+                }
 
               /* Read the response body and add it to warc_tmp.  */
               flags = 0;
-              fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
-              /* TODO check for errors */
+              int res = fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
+              if (res >= 0)
+                {
+                  /* Create a response record and write it to the WARC file.
+                     Note: per the WARC standard, the request and response should share
+                     the same date header.  We re-use the timestamp of the request.
+                     The response record should also refer to the uuid of the request.  */
+                  bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+                  if (! warc_result)
+                    {
+                      CLOSE_INVALIDATE (sock);
+                      xfree_null (type);
+                      xfree (head);
+                      return WARC_ERR;
+                    }
+                  else
+                    CLOSE_FINISH (sock);
 
-              /* Create a response record and write it to the WARC file.
-                 Note: per the WARC standard, the request and response should share
-                 the same date header.  We re-use the timestamp of the request.
-                 The response record should also refer to the uuid of the request.  */
-              warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
-              /* TODO check result */
-
-              /* warc_write_response_record has closed warc_tmp. */
-
-              CLOSE_FINISH (sock);
+                  /* warc_write_response_record has closed warc_tmp. */
+                }
+              else if (res == -2)
+                {
+                  /* Error while writing to warc_tmp. */
+                  if (warc_tmp != NULL)
+                    fclose (warc_tmp);
+                  CLOSE_INVALIDATE (sock);
+                  xfree_null (type);
+                  xfree (head);
+                  return WARC_TMP_FWRITEERR;
+                }
+              else
+                CLOSE_INVALIDATE (sock);
             }
           else
             {
@@ -2537,27 +2602,61 @@ read_header:
         {
           /* Open a temporary file where we can write the response before we
              add it to the WARC record.  */
+          int warcerr = 0;
           warc_tmp = warc_tempfile ();
-          /* TODO check WARC error? */
+          if (warc_tmp == NULL)
+            warcerr = WARC_TMP_FOPENERR;
 
-          /* We should keep the response headers for the WARC record.  */
-          fwrite (head, 1, strlen (head), warc_tmp);
+          if (warcerr == 0)
+            {
+              /* We should keep the response headers for the WARC record.  */
+              int head_len = strlen (head);
+              int warc_tmp_written = fwrite (head, 1, head_len, warc_tmp);
+              if (warc_tmp_written != head_len)
+                warcerr = WARC_TMP_FWRITEERR;
+            }
+
+          if (warcerr != 0)
+            {
+              CLOSE_INVALIDATE (sock);
+              xfree (head);
+              if (warc_tmp != NULL)
+                fclose (warc_tmp);
+              return warcerr;
+            }
 
           /* Read the response body and add it to warc_tmp.  */
           flags = 0;
-          fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
-          /* TODO check for errors */
+          int res = fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
+          if (res >= 0)
+            {
+              /* Create a response record and write it to the WARC file.
+                 Note: per the WARC standard, the request and response should share
+                 the same date header.  We re-use the timestamp of the request.
+                 The response record should also refer to the uuid of the request.  */
+              bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+              if (! warc_result)
+                {
+                  CLOSE_INVALIDATE (sock);
+                  xfree (head);
+                  return WARC_ERR;
+                }
+              else
+                CLOSE_FINISH (sock);
 
-          /* Create a response record and write it to the WARC file.
-             Note: per the WARC standard, the request and response should share
-             the same date header.  We re-use the timestamp of the request.
-             The response record should also refer to the uuid of the request.  */
-          warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
-          /* TODO check result */
-
-          /* warc_write_response_record has closed warc_tmp. */
-
-          CLOSE_FINISH (sock);
+              /* warc_write_response_record has closed warc_tmp. */
+            }
+          else if (res == -2)
+            {
+              /* Error while writing to warc_tmp. */
+              if (warc_tmp != NULL)
+                fclose (warc_tmp);
+              CLOSE_INVALIDATE (sock);
+              xfree (head);
+              return WARC_TMP_FWRITEERR;
+            }
+          else
+            CLOSE_INVALIDATE (sock);
         }
       else
         {
@@ -2672,11 +2771,30 @@ read_header:
     {
       /* Open a temporary file where we can write the response before we
          add it to the WARC record.  */
+      int warcerr = 0;
       warc_tmp = warc_tempfile ();
-      /* TODO check WARC error? */
+      if (warc_tmp == NULL)
+        warcerr = WARC_TMP_FOPENERR;
 
-      /* We should keep the response headers for the WARC record.  */
-      fwrite (head, 1, strlen (head), warc_tmp);
+      if (warcerr == 0)
+        {
+          /* We should keep the response headers for the WARC record.  */
+          int head_len = strlen (head);
+          int warc_tmp_written = fwrite (head, 1, head_len, warc_tmp);
+          if (warc_tmp_written != head_len)
+            warcerr = WARC_TMP_FWRITEERR;
+        }
+
+      if (warcerr != 0)
+        {
+          CLOSE_INVALIDATE (sock);
+          xfree (head);
+          if (warc_tmp != NULL)
+            fclose (warc_tmp);
+          if (!output_stream)
+            fclose (fp);
+          return warcerr;
+        }
     }
 
 
@@ -2721,19 +2839,25 @@ read_header:
       CLOSE_INVALIDATE (sock);
     }
 
-
-
-
   if (warc_enabled)
     {
-      /* Create a response record and write it to the WARC file.
-         Note: per the WARC standard, the request and response should share
-         the same date header.  We re-use the timestamp of the request.
-         The response record should also refer to the uuid of the request.  */
-      warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
-      /* TODO check result */
+      if (hs->res >= 0)
+        {
+          /* Create a response record and write it to the WARC file.
+             Note: per the WARC standard, the request and response should share
+             the same date header.  We re-use the timestamp of the request.
+             The response record should also refer to the uuid of the request.  */
+          bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+          if (! warc_result)
+            return WARC_ERR;
 
-      /* warc_write_response_record has closed warc_tmp. */
+          /* warc_write_response_record has closed warc_tmp. */
+        }
+      else
+        {
+          if (warc_tmp != NULL)
+            fclose (warc_tmp);
+        }
     }
 
 
@@ -2741,6 +2865,8 @@ read_header:
     fclose (fp);
   if (hs->res == -2)
     return FWRITEERR;
+  if (hs->res == -3)
+    return WARC_TMP_FWRITEERR;
   return RETRFINISHED;
 }
 
@@ -2938,6 +3064,18 @@ Spider mode enabled. Check if remote file exists.\n"));
         case HOSTERR: case CONIMPOSSIBLE: case PROXERR: case AUTHFAILED:
         case SSLINITFAILED: case CONTNOTSUPPORTED: case VERIFCERTERR:
           /* Fatal errors just return from the function.  */
+          ret = err;
+          goto exit;
+        case WARC_ERR:
+          /* A fatal WARC error. */
+          logputs (LOG_VERBOSE, "\n");
+          logprintf (LOG_NOTQUIET, _("Cannot write to WARC file..\n"));
+          ret = err;
+          goto exit;
+        case WARC_TMP_FOPENERR: case WARC_TMP_FWRITEERR:
+          /* A fatal WARC error. */
+          logputs (LOG_VERBOSE, "\n");
+          logprintf (LOG_NOTQUIET, _("Cannot write to temporary WARC file.\n"));
           ret = err;
           goto exit;
         case CONSSLERR:

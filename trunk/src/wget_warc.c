@@ -134,6 +134,8 @@ warc_start_new_file ()
   else
     sprintf (new_filename, "%s.%s", opt.warc_filename, extension);
 
+  logprintf (LOG_VERBOSE, _("Opening WARC file %s.\n\n"), quote (new_filename));
+
   wfile_comp_t compression = (opt.warc_compression_enabled ? WARC_FILE_COMPRESSED_GZIP_BEST_COMPRESSION : WARC_FILE_UNCOMPRESSED);
 
   /* Find the temporary directory. */
@@ -145,7 +147,7 @@ warc_start_new_file ()
   warc_current_wfile = bless (WFile, new_filename, opt.warc_maxsize, WARC_FILE_WRITER, compression, warc_tmpdir);
   if (warc_current_wfile == NULL)
     {
-      fprintf (stderr, "Error opening WARC file.\n");
+      logprintf (LOG_NOTQUIET, _("Error opening WARC file.\n"));
       return false;
     }
 
@@ -175,7 +177,7 @@ warc_start_new_file ()
   /* Returns true on error. */
   if ( WFile_storeRecord (warc_current_wfile, infoWRecord) )
     {
-      fprintf(stderr, "Error writing winfo record to WARC file.\n");
+      logprintf (LOG_NOTQUIET, _("Error writing winfo record to WARC file.\n"));
       destroy (infoWRecord);
       free (new_filename_copy);
       return false;
@@ -200,7 +202,7 @@ warc_store_record (void * record)
         {
           if (! warc_start_new_file ())
             {
-              fprintf(stderr, "Could not open new WARC file.\n");
+              logprintf (LOG_NOTQUIET, _("Could not open new WARC file.\n"));
               return false;
             }
         }
@@ -211,7 +213,7 @@ warc_store_record (void * record)
       /* This will return true if writing failed. */
       if ( WFile_storeRecord (warc_current_wfile, record) )
         {
-          fprintf(stderr, "Error writing record to WARC file.\n");
+          logprintf (LOG_NOTQUIET, _("Error writing record to WARC file.\n"));
           return false;
         }
 
@@ -219,7 +221,7 @@ warc_store_record (void * record)
     }
   else
     {
-      fprintf(stderr, "Called warc_store_record without open WFile.\n");
+      logprintf (LOG_NOTQUIET, _("Called warc_store_record without open WFile.\n"));
       return false;
     }
 }
@@ -234,8 +236,8 @@ warc_init ()
       warc_current_file_number = -1;
       if (! warc_start_new_file ())
         {
-          fprintf(stderr, "Could not open WARC file.\n");
-          opt.warc_filename = 0;
+          logprintf (LOG_NOTQUIET, _("Could not open WARC file.\n"));
+          exit(1);
         }
     }
 }
@@ -270,7 +272,6 @@ warc_tempfile ()
     return NULL;
 
   return fdopen (fd, "wb+");
-  /* TODO check for errors */
 }
 
 /* Writes a request record to the WARC file.
@@ -291,13 +292,13 @@ warc_write_request_record (char *url, char *timestamp_str, char *request_uuid, F
   warc_setRecordId (requestWRecord, request_uuid);
   warc_setContentFromFile (requestWRecord, body);
 
-  warc_store_record (requestWRecord);
+  bool result = warc_store_record (requestWRecord);
 
   destroy (requestWRecord);
 
   /* destroy has also closed body. */
 
-  return true;
+  return result;
 }
 
 /* Writes a response record to the WARC file.
@@ -324,12 +325,12 @@ warc_write_response_record (char *url, char *timestamp_str, char *request_uuid, 
   warc_setConcurrentTo (responseWRecord, request_uuid);
   warc_setContentFromFile (responseWRecord, body);
 
-  warc_store_record (responseWRecord);
+  bool result = warc_store_record (responseWRecord);
 
   destroy (responseWRecord);
 
   /* destroy has also closed body. */
 
-  return true;
+  return result;
 }
 

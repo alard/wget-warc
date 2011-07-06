@@ -139,7 +139,10 @@ limit_bandwidth (wgint bytes, struct ptimer *timer)
 
 /* Write data in BUF to OUT.  However, if *SKIP is non-zero, skip that
    amount of data and decrease SKIP.  Increment *TOTAL by the amount
-   of data written.  If OUT2 is not NULL, also write BUF to OUT2.  */
+   of data written.  If OUT2 is not NULL, also write BUF to OUT2.
+   In case of error writing to OUT, -1 is returned.  In case of error
+   writing to OUT2, -2 is returned.  In case of any other error,
+   1 is returned.  */
 
 static int
 write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
@@ -164,11 +167,8 @@ write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
   fwrite (buf, 1, bufsize, out);
   *written += bufsize;
 
-  if (out2 != 0)
-    {
-      /* TODO check for WARC write errors? */
-      fwrite (buf, 1, bufsize, out2);
-    }
+  if (out2 != NULL)
+    fwrite (buf, 1, bufsize, out2);
 
   /* Immediately flush the downloaded data.  This should not hinder
      performance: fast downloads will arrive in large 16K chunks
@@ -186,7 +186,12 @@ write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
 #ifndef __VMS
   fflush (out);
 #endif /* ndef __VMS */
-  return !ferror (out);
+  if (ferror (out))
+    return -1;
+  else if (ferror (out2))
+    return -2;
+  else
+    return 0;
 }
 
 /* Read the contents of file descriptor FD until it the connection
@@ -208,7 +213,8 @@ write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
 
    The function exits and returns the amount of data read.  In case of
    error while reading data, -1 is returned.  In case of error while
-   writing data, -2 is returned.  */
+   writing data to OUT, -2 is returned.  In case of error while writing
+   data to OUT2, -3 is returned.  */
 
 int
 fd_read_body (int fd, FILE *out, wgint toread, wgint startpos,
@@ -351,9 +357,10 @@ fd_read_body (int fd, FILE *out, wgint toread, wgint startpos,
       if (ret > 0)
         {
           sum_read += ret;
-          if (!write_data (out, dlbuf, ret, &skip, &sum_written, out2))
+          int write_res = write_data (out, dlbuf, ret, &skip, &sum_written, out2);
+          if (write_res != 0)
             {
-              ret = -2;
+              ret = (write_res == -3) ? -3 : -2;
               goto out;
             }
           if (chunked)
