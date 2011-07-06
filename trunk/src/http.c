@@ -59,7 +59,6 @@ as that of the covered work.  */
 #include "convert.h"
 #include "spider.h"
 #include "wget_warc.h"
-#include <warc.h>
 
 #ifdef TESTING
 #include "test.h"
