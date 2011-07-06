@@ -190,7 +190,7 @@ CFLAGS  += $(LARGE_FILES)
 # compile in release mode (no debug info will be included and assertions are disabled). Use with care.
 ifeq ($(W_RELEASE),on)
 	DFLAG   =
-	CFLAGS += -NDEBUG
+	CFLAGS += -DNDEBUG
 endif
 CFLAGS += $(DFLAG)
 

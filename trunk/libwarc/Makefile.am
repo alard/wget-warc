@@ -399,7 +399,7 @@ EXTRA_DIST = 	warc-tools/misc/statistic.sh \
 	warc-tools/app/warcdump.c
 
 all-local:
-	cd warc-tools && $(MAKE) $(AM_MAKEFLAGS) static
+	cd warc-tools && $(MAKE) $(AM_MAKEFLAGS) release static
 
 clean-local:
 	cd warc-tools && $(MAKE) $(AM_MAKEFLAGS) clean
