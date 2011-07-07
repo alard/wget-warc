@@ -52,7 +52,6 @@ WARC_WRAP_METHOD (setContentType)
 WARC_WRAP_METHOD (setRecordId)
 WARC_WRAP_METHOD (setFilename)
 WARC_WRAP_METHOD (setConcurrentTo)
-WARC_WRAP_METHOD (setContentFromString)
 WARC_WRAP_METHOD (setWarcInfoId)
 WARC_WRAP_METHOD (setBlockDigest)
 WARC_WRAP_METHOD (setPayloadDigest)
@@ -302,9 +301,31 @@ warc_write_warcinfo_record (char * filename)
   warc_setRecordId (infoWRecord, warc_current_winfo_uuid_str);
   warc_setFilename (infoWRecord, filename_basename);
 
-  char winfo_header_string [400]; /* lazy */
-  sprintf (winfo_header_string, "software: Wget/%s (%s)\r\nformat: WARC File Format 1.0\r\nconformsTo: http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf\r\nrobots: %s\r\nwget-arguments: %s\r\n\r\n", version_string, OS_TYPE, (opt.use_robots ? "classic" : "off"), program_argstring);
-  warc_setContentFromString (infoWRecord, winfo_header_string);
+  /* Create content.  (The warc-tools library would create a temporary file
+     anyway, so we can just as well do it here.)  */
+  FILE * warc_tmp = warc_tempfile ();
+  if (warc_tmp == NULL)
+    {
+      destroy (infoWRecord);
+      free (filename_copy);
+      return false;
+    }
+
+  fprintf (warc_tmp, "software: Wget/%s (%s)\r\n", version_string, OS_TYPE);
+  fprintf (warc_tmp, "format: WARC File Format 1.0\r\n");
+  fprintf (warc_tmp, "conformsTo: http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf\r\n");
+  fprintf (warc_tmp, "robots: %s\r\n", (opt.use_robots ? "classic" : "off"));
+  fprintf (warc_tmp, "wget-arguments: %s\r\n", program_argstring);
+  /* Add the user headers, if any. */
+  if (opt.warc_user_headers)
+    {
+      int i;
+      for (i = 0; opt.warc_user_headers[i]; i++)
+        fprintf (warc_tmp, "%s\r\n", opt.warc_user_headers[i]);
+    }
+  fprintf(warc_tmp, "\r\n");
+
+  warc_setContentFromFile (infoWRecord, warc_tmp, -1);
 
   /* Returns true on error. */
   if ( WFile_storeRecord (warc_current_wfile, infoWRecord) )
@@ -317,6 +338,8 @@ warc_write_warcinfo_record (char * filename)
 
   destroy (infoWRecord);
   free (filename_copy);
+
+  /* destroy will have closed warc_tmp. */
 
   return true;
 }

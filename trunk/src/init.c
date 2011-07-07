@@ -88,6 +88,7 @@ CMD_DECLARE (cmd_vector);
 
 CMD_DECLARE (cmd_spec_dirstruct);
 CMD_DECLARE (cmd_spec_header);
+CMD_DECLARE (cmd_spec_warc_header);
 CMD_DECLARE (cmd_spec_htmlify);
 CMD_DECLARE (cmd_spec_mirror);
 CMD_DECLARE (cmd_spec_prefer_family);
@@ -265,6 +266,7 @@ static const struct {
   { "warccompression",  &opt.warc_compression_enabled, cmd_boolean },
   { "warcdigests",      &opt.warc_digests_enabled, cmd_boolean },
   { "warcfile",         &opt.warc_filename,     cmd_file },
+  { "warcheader",       NULL,                   cmd_spec_warc_header },
   { "warcmaxsize",      &opt.warc_maxsize,      cmd_bytes },
   { "warctempdir",      &opt.warc_tempdir,      cmd_directory },
 #ifdef USE_WATT32
@@ -1216,6 +1218,27 @@ cmd_spec_header (const char *com, const char *val, void *place_ignored)
 }
 
 static bool
+cmd_spec_warc_header (const char *com, const char *val, void *place_ignored)
+{
+  /* Empty value means reset the list of headers. */
+  if (*val == '\0')
+    {
+      free_vec (opt.warc_user_headers);
+      opt.warc_user_headers = NULL;
+      return true;
+    }
+
+  if (!check_user_specified_header (val))
+    {
+      fprintf (stderr, _("%s: %s: Invalid WARC header %s.\n"),
+               exec_name, com, quote (val));
+      return false;
+    }
+  opt.warc_user_headers = vec_append (opt.warc_user_headers, val);
+  return true;
+}
+
+static bool
 cmd_spec_htmlify (const char *com, const char *val, void *place_ignored)
 {
   int flag = cmd_boolean (com, val, &opt.htmlify);
@@ -1619,6 +1642,7 @@ cleanup (void)
   xfree_null (opt.http_user);
   xfree_null (opt.http_passwd);
   free_vec (opt.user_headers);
+  free_vec (opt.warc_user_headers);
 # ifdef HAVE_SSL
   xfree_null (opt.cert_file);
   xfree_null (opt.private_key);

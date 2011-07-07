@@ -290,6 +290,7 @@ static struct cmdline_option option_data[] =
     { "warc-compression", 0, OPT_BOOLEAN, "warccompression", -1 },
     { "warc-digests", 0, OPT_BOOLEAN, "warcdigests", -1 },
     { "warc-file", 0, OPT_VALUE, "warcfile", -1 },
+    { "warc-header", 0, OPT_VALUE, "warcheader", -1 },
     { "warc-max-size", 0, OPT_VALUE, "warcmaxsize", -1 },
     { "warc-tempdir", 0, OPT_VALUE, "warctempdir", -1 },
 #ifdef USE_WATT32
@@ -542,6 +543,8 @@ Download:\n"),
        --no-warc-compression     do not compress WARC files with GZIP.\n"),
     N_("\
        --no-warc-digests         do not calculate SHA1 digests.\n"),
+    N_("\
+       --warc-header=STRING      insert STRING into the warcinfo record.\n"),
     N_("\
        --warc-max-size=NUMBER    set maximum size of WARC files to NUMBER.\n"),
     N_("\

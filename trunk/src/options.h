@@ -92,6 +92,7 @@ struct options
   wgint warc_maxsize;           /* WARC max archive size */
   bool warc_compression_enabled;  /* For GZIP compression. */
   bool warc_digests_enabled;  /* For SHA1 digests. */
+  char **warc_user_headers;		/* User-defined WARC header(s). */
 
   char *user;			/* Generic username */
   char *passwd;			/* Generic password */
