@@ -1327,6 +1327,10 @@ WPRIVATE warc_bool_t  WRecord_checkIpAddress (const warc_u8_t * ipadd)
   warc_u32_t   b1, b2, b3, b4, port = 0;
   warc_u8_t    c;
 
+  /* Since this doesn't work with IPv6 addresses, just skip this check.
+     wget's print_address will always generate a valid ip. */
+  return WARC_TRUE;
+
   rc = sscanf ( (const char *) ipadd, "%3u.%3u.%3u.%3u:%u%c",
                 & b1, & b2, & b3, & b4, & port, & c);
 

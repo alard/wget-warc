@@ -1574,6 +1574,7 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
   FILE * warc_tmp = NULL;
   char warc_timestamp_str [21];
   char warc_request_uuid [48];
+  ip_address *warc_ip = NULL;
 
   /* Whether this connection will be kept alive after the HTTP request
      is done. */
@@ -1956,6 +1957,12 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
           request_free (req);
           return WARC_TMP_FOPENERR;
         }
+
+      if (! proxy)
+        {
+          warc_ip = (ip_address *) alloca (sizeof (ip_address));
+          socket_ip_address (sock, warc_ip, ENDPOINT_PEER);
+        }
     }
 
   /* Send the request to server.  */
@@ -2008,7 +2015,7 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
       warc_uuid_str (warc_request_uuid);
 
       /* Create a request record and store it in the WARC file. */
-      bool warc_result = warc_write_request_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+      bool warc_result = warc_write_request_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp);
       if (! warc_result)
         {
           CLOSE_INVALIDATE (sock);
@@ -2432,7 +2439,7 @@ read_header:
                      Note: per the WARC standard, the request and response should share
                      the same date header.  We re-use the timestamp of the request.
                      The response record should also refer to the uuid of the request.  */
-                  bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+                  bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp);
                   if (! warc_result)
                     {
                       CLOSE_INVALIDATE (sock);
@@ -2634,7 +2641,7 @@ read_header:
                  Note: per the WARC standard, the request and response should share
                  the same date header.  We re-use the timestamp of the request.
                  The response record should also refer to the uuid of the request.  */
-              bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+              bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp);
               if (! warc_result)
                 {
                   CLOSE_INVALIDATE (sock);
@@ -2847,7 +2854,7 @@ read_header:
              Note: per the WARC standard, the request and response should share
              the same date header.  We re-use the timestamp of the request.
              The response record should also refer to the uuid of the request.  */
-          bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_tmp);
+          bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp);
           if (! warc_result)
             return WARC_ERR;
 

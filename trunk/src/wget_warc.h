@@ -2,6 +2,8 @@
 #ifndef WGET_WARC_H
 #define WGET_WARC_H
 
+#include "host.h"
+
 void warc_init ();
 void warc_close ();
 void warc_timestamp (char *timestamp);
@@ -9,8 +11,8 @@ void warc_uuid_str (char *id_str);
 
 FILE * warc_tempfile ();
 
-bool warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body);
-bool warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body);
+bool warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body);
+bool warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body);
 bool warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body);
 
 #endif /* WGET_WARC_H */

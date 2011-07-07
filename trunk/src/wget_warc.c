@@ -51,6 +51,7 @@ WARC_WRAP_METHOD (setFilename)
 WARC_WRAP_METHOD (setConcurrentTo)
 WARC_WRAP_METHOD (setContentFromString)
 WARC_WRAP_METHOD (setWarcInfoId)
+WARC_WRAP_METHOD (setIpAddress)
 
 static bool
 warc_setContentFromFileName (void *record, char *u8_filename)
@@ -280,22 +281,31 @@ warc_tempfile ()
    timestamp_str  is the timestamp of the request (generated with warc_timestamp),
    concurrent_to_uuid  is the uuid of the request (generated with warc_uuid_str),
    body  is a pointer to a file containing the request headers and body.
+   ip  is the ip address of the server (or NULL),
    Calling this function will close body.
    Returns true on success, false on error. */
 bool
-warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body)
+warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body)
 {
+  char * ip_str = NULL;
+  if (ip != NULL)
+    ip_str = strdup (print_address (ip));
+
   void * requestWRecord = bless (WRecord);
   warc_setRecordType (requestWRecord, WARC_REQUEST_RECORD);
   warc_setTargetUri (requestWRecord, url);
   warc_setContentType (requestWRecord, "application/http;msgtype=request");
   warc_setDate (requestWRecord, timestamp_str);
   warc_setRecordId (requestWRecord, concurrent_to_uuid);
+  if (ip_str != NULL)
+    warc_setIpAddress (requestWRecord, ip_str);
   warc_setContentFromFile (requestWRecord, body);
 
   bool result = warc_store_record (requestWRecord);
 
   destroy (requestWRecord);
+  if (ip_str != NULL)
+    free (ip_str);
 
   /* destroy has also closed body. */
 
@@ -308,12 +318,17 @@ warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_u
                   (generated with warc_timestamp),
    concurrent_to_uuid  is the uuid of the request for that generated this response
                  (generated with warc_uuid_str),
+   ip  is the ip address of the server (or NULL),
    body  is a pointer to a file containing the response headers and body.
    Calling this function will close body.
    Returns true on success, false on error. */
 bool
-warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body)
+warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body)
 {
+  char * ip_str = NULL;
+  if (ip != NULL)
+    ip_str = strdup (print_address (ip));
+
   char response_uuid [48];
   warc_uuid_str (response_uuid);
 
@@ -324,11 +339,15 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_setDate (responseWRecord, timestamp_str);
   warc_setRecordId (responseWRecord, response_uuid);
   warc_setConcurrentTo (responseWRecord, concurrent_to_uuid);
+  if (ip_str != NULL)
+    warc_setIpAddress (responseWRecord, ip_str);
   warc_setContentFromFile (responseWRecord, body);
 
   bool result = warc_store_record (responseWRecord);
 
   destroy (responseWRecord);
+  if (ip_str != NULL)
+    free (ip_str);
 
   /* destroy has also closed body. */
 
