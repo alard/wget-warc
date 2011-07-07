@@ -1405,6 +1405,7 @@ ftp_loop_internal (struct url *u, struct fileinfo *f, ccon *con, char **local_fi
   /* Declare WARC variables. */
   bool warc_enabled = (opt.warc_filename != NULL);
   FILE * warc_tmp = NULL;
+  ip_address *warc_ip = NULL;
 
   /* Get the target, and set the name for the message accordingly. */
   if ((f == NULL) && (con->target))
@@ -1449,6 +1450,12 @@ ftp_loop_internal (struct url *u, struct fileinfo *f, ccon *con, char **local_fi
       warc_tmp = warc_tempfile ();
       if (warc_tmp == NULL)
         return WARC_TMP_FOPENERR;
+
+      if (!con->proxy && con->csock != -1)
+        {
+          warc_ip = (ip_address *) alloca (sizeof (ip_address));
+          socket_ip_address (con->csock, warc_ip, ENDPOINT_PEER);
+        }
     }
 
   /* THE loop.  */
@@ -1603,7 +1610,7 @@ ftp_loop_internal (struct url *u, struct fileinfo *f, ccon *con, char **local_fi
       if (warc_enabled && (con->cmd & DO_RETR))
         {
           /* Create and store a WARC resource record for the retrieved file. */
-          bool warc_result = warc_write_resource_record (u->url, NULL, NULL, warc_tmp);
+          bool warc_result = warc_write_resource_record (u->url, NULL, NULL, warc_ip, warc_tmp);
           if (! warc_result)
           {
             return WARC_ERR;

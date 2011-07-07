@@ -359,12 +359,17 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
    timestamp_str  is the timestamp (generated with warc_timestamp),
    concurrent_to_uuid  is the uuid of the request for that generated this resource
                  (generated with warc_uuid_str) or NULL,
+   ip  is the ip address of the server (or NULL),
    body  is a pointer to a file containing the resource data.
    Calling this function will close body.
    Returns true on success, false on error. */
 bool
-warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_uuid, FILE *body)
+warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body)
 {
+  char * ip_str = NULL;
+  if (ip != NULL)
+    ip_str = strdup (print_address (ip));
+
   char resource_uuid [48];
   warc_uuid_str (resource_uuid);
 
@@ -382,11 +387,15 @@ warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_setContentType (resourceWRecord, "application/octet-stream");
   if (concurrent_to_uuid != NULL)
     warc_setConcurrentTo (resourceWRecord, concurrent_to_uuid);
+  if (ip_str != NULL)
+    warc_setIpAddress (resourceWRecord, ip_str);
   warc_setContentFromFile (resourceWRecord, body);
 
   bool result = warc_store_record (resourceWRecord);
 
   destroy (resourceWRecord);
+  if (ip_str != NULL)
+    free (ip_str);
 
   /* destroy has also closed body. */
 
