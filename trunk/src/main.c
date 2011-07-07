@@ -537,19 +537,6 @@ Download:\n"),
        --remote-encoding=ENC     use ENC as the default remote encoding.\n"),
     N_("\
        --unlink                  remove file before clobber.\n"),
-    N_("\
-       --warc-file=FILENAME      save request/response data to a .warc.gz file.\n"),
-    N_("\
-       --no-warc-compression     do not compress WARC files with GZIP.\n"),
-    N_("\
-       --no-warc-digests         do not calculate SHA1 digests.\n"),
-    N_("\
-       --warc-header=STRING      insert STRING into the warcinfo record.\n"),
-    N_("\
-       --warc-max-size=NUMBER    set maximum size of WARC files to NUMBER.\n"),
-    N_("\
-       --warc-tempdir=DIRECTORY  location for temporary files created by the\n\
-                                 WARC writer.\n"),
     "\n",
 
     N_("\
@@ -665,6 +652,23 @@ FTP options:\n"),
        --no-passive-ftp        disable the \"passive\" transfer mode.\n"),
     N_("\
        --retr-symlinks         when recursing, get linked-to files (not dir).\n"),
+    "\n",
+
+    N_("\
+WARC options:\n"),
+    N_("\
+       --warc-file=FILENAME      save request/response data to a .warc.gz file.\n"),
+    N_("\
+       --warc-header=STRING      insert STRING into the warcinfo record.\n"),
+    N_("\
+       --warc-max-size=NUMBER    set maximum size of WARC files to NUMBER.\n"),
+    N_("\
+       --no-warc-compression     do not compress WARC files with GZIP.\n"),
+    N_("\
+       --no-warc-digests         do not calculate SHA1 digests.\n"),
+    N_("\
+       --warc-tempdir=DIRECTORY  location for temporary files created by the\n\
+                                 WARC writer.\n"),
     "\n",
 
     N_("\
