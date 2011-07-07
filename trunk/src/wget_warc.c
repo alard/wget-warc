@@ -260,6 +260,49 @@ warc_uuid_str (char *urn_str)
   sprintf(urn_str, "<urn:uuid:%s>", uuid_str);
 }
 
+/* Write a warcinfo record to the current file.
+   Updates warc_current_winfo_uuid_str. */
+bool
+warc_write_warcinfo_record (char * filename)
+{
+  /* Write warc-info record as the first record of the file. */
+  /* We add the record id of this info record to the other records in the file. */
+  warc_current_winfo_uuid_str = (char *) malloc (48);
+  warc_uuid_str (warc_current_winfo_uuid_str);
+
+  char warc_timestamp_str [21];
+  warc_timestamp (warc_timestamp_str);
+
+  char *filename_copy, *filename_basename;
+  filename_copy = strdup (filename);
+  filename_basename = basename (filename_copy);
+
+  void * infoWRecord = bless (WRecord);
+  warc_setRecordType (infoWRecord, WARC_INFO_RECORD);
+  warc_setContentType (infoWRecord, "application/warc-fields");
+  warc_setDate (infoWRecord, warc_timestamp_str);
+  warc_setRecordId (infoWRecord, warc_current_winfo_uuid_str);
+  warc_setFilename (infoWRecord, filename_basename);
+
+  char winfo_header_string [400]; /* lazy */
+  sprintf (winfo_header_string, "software: Wget/%s (%s)\r\nformat: WARC File Format 1.0\r\nconformsTo: http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf\r\nrobots: %s\r\nwget-arguments: %s\r\n\r\n", version_string, OS_TYPE, (opt.use_robots ? "classic" : "off"), program_argstring);
+  warc_setContentFromString (infoWRecord, winfo_header_string);
+
+  /* Returns true on error. */
+  if ( WFile_storeRecord (warc_current_wfile, infoWRecord) )
+    {
+      logprintf (LOG_NOTQUIET, _("Error writing winfo record to WARC file.\n"));
+      destroy (infoWRecord);
+      free (filename_copy);
+      return false;
+    }
+
+  destroy (infoWRecord);
+  free (filename_copy);
+
+  return true;
+}
+
 /* Opens a new WARC file.
    
    This method will:
@@ -312,40 +355,8 @@ warc_start_new_file ()
       return false;
     }
 
-  /* Write warc-info record as the first record of the file. */
-  /* We add the record id of this info record to the other records in the file. */
-  warc_current_winfo_uuid_str = (char *) malloc (48);
-  warc_uuid_str (warc_current_winfo_uuid_str);
-
-  char warc_timestamp_str [21];
-  warc_timestamp (warc_timestamp_str);
-
-  char *new_filename_copy, *new_filename_basename;
-  new_filename_copy = strdup (new_filename);
-  new_filename_basename = basename (new_filename_copy);
-
-  void * infoWRecord = bless (WRecord);
-  warc_setRecordType (infoWRecord, WARC_INFO_RECORD);
-  warc_setContentType (infoWRecord, "application/warc-fields");
-  warc_setDate (infoWRecord, warc_timestamp_str);
-  warc_setRecordId (infoWRecord, warc_current_winfo_uuid_str);
-  warc_setFilename (infoWRecord, new_filename_basename);
-
-  char winfo_header_string [400]; /* lazy */
-  sprintf (winfo_header_string, "software: Wget/%s (%s)\r\nformat: WARC File Format 1.0\r\nconformsTo: http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf\r\nrobots: %s\r\nwget-arguments: %s\r\n\r\n", version_string, OS_TYPE, (opt.use_robots ? "classic" : "off"), program_argstring);
-  warc_setContentFromString (infoWRecord, winfo_header_string);
-
-  /* Returns true on error. */
-  if ( WFile_storeRecord (warc_current_wfile, infoWRecord) )
-    {
-      logprintf (LOG_NOTQUIET, _("Error writing winfo record to WARC file.\n"));
-      destroy (infoWRecord);
-      free (new_filename_copy);
-      return false;
-    }
-
-  destroy (infoWRecord);
-  free (new_filename_copy);
+  if (! warc_write_warcinfo_record (new_filename))
+    return false;
 
   return true;
 }
