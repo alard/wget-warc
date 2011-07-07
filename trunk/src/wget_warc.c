@@ -27,8 +27,14 @@ extern char *program_argstring;
    This is a pointer to a WFile object. */
 static void *warc_current_wfile;
 
+/* The current CDX file (or NULL, if CDX is disabled). */
+static FILE *warc_current_cdx_file;
+
 /* The record id of the warcinfo record of the current WARC file.  */
 static char *warc_current_winfo_uuid_str;
+
+/* The file name of the current WARC file. */
+static char *warc_current_filename;
 
 /* The serial number of the current WARC file.  This number is
    incremented each time a new file is opened and is used in the
@@ -328,7 +334,7 @@ warc_write_warcinfo_record (char * filename)
   warc_setContentFromFile (infoWRecord, warc_tmp, -1);
 
   /* Returns true on error. */
-  if ( WFile_storeRecord (warc_current_wfile, infoWRecord) )
+  if ( WFile_storeRecord (warc_current_wfile, infoWRecord, NULL) )
     {
       logprintf (LOG_NOTQUIET, _("Error writing winfo record to WARC file.\n"));
       destroy (infoWRecord);
@@ -362,14 +368,19 @@ warc_start_new_file ()
 
   if (warc_current_wfile != NULL)
     destroy (warc_current_wfile);
+  if (warc_current_cdx_file != NULL)
+    fclose (warc_current_cdx_file);
   if (warc_current_winfo_uuid_str)
     free (warc_current_winfo_uuid_str);
+  if (warc_current_filename)
+    free (warc_current_filename);
 
   warc_current_file_number++;
 
   int base_filename_length = strlen (opt.warc_filename);
   /* filename format:  base + "-" + 5 digit serial number + ".warc.gz" */
-  char *new_filename = alloca (base_filename_length + 1 + 5 + 8 + 1);
+  char *new_filename = malloc (base_filename_length + 1 + 5 + 8 + 1);
+  warc_current_filename = new_filename;
 
   char *extension = (opt.warc_compression_enabled ? "warc.gz" : "warc");
 
@@ -389,11 +400,43 @@ warc_start_new_file ()
     return false;
   char *warc_tmpdir = dirname (tmpdir_filename);
 
+  /* Open the WARC file. */
   warc_current_wfile = bless (WFile, new_filename, opt.warc_maxsize, WARC_FILE_WRITER, compression, warc_tmpdir);
   if (warc_current_wfile == NULL)
     {
       logprintf (LOG_NOTQUIET, _("Error opening WARC file.\n"));
       return false;
+    }
+
+  if (opt.warc_cdx_enabled)
+    {
+      /* Open the CDX file. */
+      int new_filename_length = strlen (new_filename);
+      char *cdx_filename = alloca (new_filename_length + 4 + 1);
+      memcpy (cdx_filename, new_filename, new_filename_length);
+      memcpy (cdx_filename + new_filename_length, ".cdx", 5);
+      warc_current_cdx_file = fopen (cdx_filename, "a+");
+      if (warc_current_cdx_file == NULL)
+        {
+          logprintf (LOG_NOTQUIET, _("Error opening CDX file.\n"));
+          return false;
+        }
+
+      /* Print the CDX header.
+       *
+       * a - original url
+       * b - date
+       * m - mime type
+       * s - response code
+       * k - new style checksum
+       * r - redirect
+       * M - meta tags
+       * V - compressed arc file offset
+       * g - file name
+       * u - record-id
+       */
+      fprintf (warc_current_cdx_file, " CDX a b a m s k r M V g u\n");
+      fflush (warc_current_cdx_file);
     }
 
   if (! warc_write_warcinfo_record (new_filename))
@@ -406,7 +449,7 @@ warc_start_new_file ()
    If the WARC file is full, the function will open a new file.
    Returns true if the writing was successful, false otherwise. */
 static bool
-warc_store_record (void * record)
+warc_store_record (void * record, unsigned long int * offset)
 {
   if (warc_current_wfile != 0)
     {
@@ -424,7 +467,7 @@ warc_store_record (void * record)
       warc_setWarcInfoId (record, warc_current_winfo_uuid_str);
 
       /* This will return true if writing failed. */
-      if ( WFile_storeRecord (warc_current_wfile, record) )
+      if ( WFile_storeRecord (warc_current_wfile, record, offset) )
         {
           logprintf (LOG_NOTQUIET, _("Error writing record to WARC file.\n"));
           return false;
@@ -507,7 +550,7 @@ warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_u
   warc_setIpAddress (requestWRecord, ip);
   warc_setContentFromFile (requestWRecord, body, payload_offset);
 
-  bool result = warc_store_record (requestWRecord);
+  bool result = warc_store_record (requestWRecord, NULL);
 
   destroy (requestWRecord);
 
@@ -524,10 +567,13 @@ warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_u
                  (generated with warc_uuid_str),
    ip  is the ip address of the server (or NULL),
    body  is a pointer to a file containing the response headers and body.
+   mime_type  is the mime type of the response body (will be printed to CDX),
+   response_code  is the HTTP response code (will be printed to CDX),
+   redirect_location  is the contents of the Location: header, or NULL (will be printed to CDX),
    Calling this function will close body.
    Returns true on success, false on error. */
 bool
-warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset)
+warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset, char *mime_type, int response_code, char *redirect_location)
 {
   char response_uuid [48];
   warc_uuid_str (response_uuid);
@@ -542,7 +588,34 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_setIpAddress (responseWRecord, ip);
   warc_setContentFromFile (responseWRecord, body, payload_offset);
 
-  bool result = warc_store_record (responseWRecord);
+  unsigned long int offset;
+  bool result = warc_store_record (responseWRecord, &offset);
+
+  if (result && opt.warc_cdx_enabled)
+    {
+      /* Add this record to the CDX. */
+      /* Transform the timestamp. */
+      char timestamp_str_cdx [15];
+      memcpy (timestamp_str_cdx     , timestamp_str     , 4); /* "YYYY" "-" */
+      memcpy (timestamp_str_cdx +  4, timestamp_str +  5, 2); /* "mm"   "-" */
+      memcpy (timestamp_str_cdx +  6, timestamp_str +  8, 2); /* "dd"   "T" */
+      memcpy (timestamp_str_cdx +  8, timestamp_str + 11, 2); /* "HH"   ":" */
+      memcpy (timestamp_str_cdx + 10, timestamp_str + 14, 2); /* "MM"   ":" */
+      memcpy (timestamp_str_cdx + 12, timestamp_str + 17, 2); /* "SS"   "Z" */
+      timestamp_str_cdx[14] = '\0';
+      
+      /* Rewrite the checksum. */
+      char *checksum = (char *) WRecord_getPayloadDigest (responseWRecord) + 5; /* Skip the "sha1:" */
+
+      if (mime_type == NULL || strlen(mime_type) == 0)
+        mime_type = "-";
+      if (redirect_location == NULL || strlen(redirect_location) == 0)
+        redirect_location = "-";
+
+      /* Print the CDX line. */
+      fprintf (warc_current_cdx_file, "%s %s %s %s %d %s %s - %ld %s %s\n", url, timestamp_str_cdx, url, mime_type, response_code, checksum, redirect_location, offset, warc_current_filename, response_uuid);
+      fflush (warc_current_cdx_file);
+    }
 
   destroy (responseWRecord);
 
@@ -576,7 +649,7 @@ warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_setIpAddress (resourceWRecord, ip);
   warc_setContentFromFile (resourceWRecord, body, payload_offset);
 
-  bool result = warc_store_record (resourceWRecord);
+  bool result = warc_store_record (resourceWRecord, NULL);
 
   destroy (resourceWRecord);
 

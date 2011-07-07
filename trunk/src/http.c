@@ -2448,7 +2448,7 @@ read_header:
                      Note: per the WARC standard, the request and response should share
                      the same date header.  We re-use the timestamp of the request.
                      The response record should also refer to the uuid of the request.  */
-                  bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset);
+                  bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset, type, statcode, hs->newloc);
                   if (! warc_result)
                     {
                       CLOSE_INVALIDATE (sock);
@@ -2601,8 +2601,6 @@ read_header:
             logputs (LOG_VERBOSE, "\n");
         }
     }
-  xfree_null (type);
-  type = NULL;                        /* We don't need it any more.  */
 
   /* Return if we have no intention of further downloading.  */
   if (!(*dt & RETROKF) || head_only)
@@ -2610,7 +2608,6 @@ read_header:
       /* In case the caller cares to look...  */
       hs->len = 0;
       hs->res = 0;
-      xfree_null (type);
 
       /* Normally we are not interested in the response body of a error responses.
          But if we are writing a WARC file we are: we like to keep everyting.  */
@@ -2637,6 +2634,7 @@ read_header:
             {
               CLOSE_INVALIDATE (sock);
               xfree (head);
+              xfree_null (type);
               if (warc_tmp != NULL)
                 fclose (warc_tmp);
               return warcerr;
@@ -2651,11 +2649,12 @@ read_header:
                  Note: per the WARC standard, the request and response should share
                  the same date header.  We re-use the timestamp of the request.
                  The response record should also refer to the uuid of the request.  */
-              bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset);
+              bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset, type, statcode, NULL);
               if (! warc_result)
                 {
                   CLOSE_INVALIDATE (sock);
                   xfree (head);
+                  xfree_null (type);
                   return WARC_ERR;
                 }
               else
@@ -2670,6 +2669,7 @@ read_header:
                 fclose (warc_tmp);
               CLOSE_INVALIDATE (sock);
               xfree (head);
+              xfree_null (type);
               return WARC_TMP_FWRITEERR;
             }
           else
@@ -2694,6 +2694,7 @@ read_header:
         }
 
       xfree (head);
+      xfree_null (type);
       return RETRFINISHED;
     }
 
@@ -2735,6 +2736,7 @@ read_header:
 			     strerror (errno));
 		  CLOSE_INVALIDATE (sock);
 		  xfree (head);
+      xfree_null (type);
 		  return UNLINKERR;
 		}
 	    }
@@ -2762,6 +2764,7 @@ read_header:
                          hs->local_file);
               CLOSE_INVALIDATE (sock);
               xfree (head);
+              xfree_null (type);
               return FOPEN_EXCL_ERR;
             }
         }
@@ -2770,6 +2773,7 @@ read_header:
           logprintf (LOG_NOTQUIET, "%s: %s\n", hs->local_file, strerror (errno));
           CLOSE_INVALIDATE (sock);
           xfree (head);
+          xfree_null (type);
           return FOPENERR;
         }
     }
@@ -2807,6 +2811,7 @@ read_header:
         {
           CLOSE_INVALIDATE (sock);
           xfree (head);
+          xfree_null (type);
           if (warc_tmp != NULL)
             fclose (warc_tmp);
           if (!output_stream)
@@ -2865,9 +2870,12 @@ read_header:
              Note: per the WARC standard, the request and response should share
              the same date header.  We re-use the timestamp of the request.
              The response record should also refer to the uuid of the request.  */
-          bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset);
+          bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset, type, statcode, NULL);
           if (! warc_result)
-            return WARC_ERR;
+            {
+              xfree_null (type);
+              return WARC_ERR;
+            }
 
           /* warc_write_response_record has closed warc_tmp. */
         }
@@ -2878,6 +2886,7 @@ read_header:
         }
     }
 
+  xfree_null (type);
 
   if (!output_stream)
     fclose (fp);

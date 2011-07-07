@@ -263,6 +263,7 @@ static const struct {
   { "verbose",          NULL,                   cmd_spec_verbose },
   { "wait",             &opt.wait,              cmd_time },
   { "waitretry",        &opt.waitretry,         cmd_time },
+  { "warccdx",          &opt.warc_cdx_enabled,  cmd_boolean },
   { "warccompression",  &opt.warc_compression_enabled, cmd_boolean },
   { "warcdigests",      &opt.warc_digests_enabled, cmd_boolean },
   { "warcfile",         &opt.warc_filename,     cmd_file },
@@ -370,6 +371,7 @@ defaults (void)
   opt.warc_maxsize = 1024 * 1024 * 1024;
   opt.warc_compression_enabled = true;
   opt.warc_digests_enabled = true;
+  opt.warc_cdx_enabled = false;
   opt.warc_tempdir = NULL;
 }
 

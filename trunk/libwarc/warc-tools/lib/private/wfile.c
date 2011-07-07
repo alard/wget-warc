@@ -1999,13 +1999,15 @@ WFile_storeRecordUncompressed (void* _self, const void * wrec,
 /**
  * @param _self WFile object instance
  * @param wrec The Warc Record to write
+ * @param record_offset Will be set to the offset of the WRecord in
+ *                      its Warc file
  *
  * @return False if succeeds, True otherwise;
  *
  * Warc Records storing funtion
  */
 
-WPUBLIC warc_bool_t WFile_storeRecord (void* _self, const void * wrec)
+WPUBLIC warc_bool_t WFile_storeRecord (void* _self, const void * wrec, warc_u64_t *recordOffset)
 {
 
   struct WFile * self = _self;
@@ -2218,6 +2220,10 @@ WPUBLIC warc_bool_t WFile_storeRecord (void* _self, const void * wrec)
   WFile_writeAnvls (wtfile, lanvl, & datalength);
 
   datalength = datalength + (warc_u32_t) WRecord_getDataSize (wrec);
+
+  /* Remember the offset of this record. */
+  if (recordOffset != NIL)
+    w_ftell (FH, *recordOffset);
 
   switch (COMP)
     {
