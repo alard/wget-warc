@@ -11,6 +11,8 @@
 #include <uuid/uuid.h>
 #include <libgen.h>
 #include <tmpdir.h>
+#include <sha1.h>
+#include <base32.h>
 #include <warc.h>
 
 #include "wget_warc.h"
@@ -52,6 +54,7 @@ WARC_WRAP_METHOD (setConcurrentTo)
 WARC_WRAP_METHOD (setContentFromString)
 WARC_WRAP_METHOD (setWarcInfoId)
 WARC_WRAP_METHOD (setIpAddress)
+WARC_WRAP_METHOD (setBlockDigest)
 
 static bool
 warc_setContentFromFileName (void *record, char *u8_filename)
@@ -64,6 +67,19 @@ warc_setContentFromFileName (void *record, char *u8_filename)
 static bool
 warc_setContentFromFile (void *record, FILE *file)
 {
+  /* Calculate the block digest. */
+  char sha1_resblock[SHA1_DIGEST_SIZE];
+  char sha1_resblock_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
+  rewind (file);
+  if (sha1_stream (file, sha1_resblock) == 0)
+    {
+      base32_encode ((unsigned char*)sha1_resblock, SHA1_DIGEST_SIZE, (unsigned char*)(sha1_resblock_base32 + 5));
+      memcpy (sha1_resblock_base32, "sha1:", 5);
+      sha1_resblock_base32[BASE32_LEN(SHA1_DIGEST_SIZE)] = '\0';
+
+      warc_setBlockDigest (record, sha1_resblock_base32);
+    }
+
   return WRecord_setContentFromFile (record, file);
 }
 

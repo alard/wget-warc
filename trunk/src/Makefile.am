@@ -54,13 +54,16 @@ wget_SOURCES = cmpt.c connect.c convert.c cookies.c ftp.c    		  \
 	       exits.h gettext.h
 nodist_wget_SOURCES = version.c
 EXTRA_wget_SOURCES = iri.c
-LDADD = $(LIBOBJS) ../lib/libgnu.a ../libwarc/warc-tools/libwarc.a
-AM_CPPFLAGS = -I$(top_builddir)/lib -I$(top_srcdir)/lib -I../libwarc/warc-tools/lib/public -I../libwarc/warc-tools/lib/private -I../libwarc/warc-tools/lib/private/os
+LDADD = $(LIBOBJS) ../lib/libgnu.a ../libwarc/warc-tools/libwarc.a ../libwarc/base32/base32.o
+AM_CPPFLAGS = -I$(top_builddir)/lib -I$(top_srcdir)/lib -I../libwarc/warc-tools/lib/public -I../libwarc/warc-tools/lib/private -I../libwarc/warc-tools/lib/private/os -I../libwarc/base32
 
 ../lib/libgnu.a:
 	cd ../lib && $(MAKE) $(AM_MAKEFLAGS)
 
 ../libwarc/warc-tools/libwarc.a:
+	cd ../libwarc && $(MAKE) $(AM_MAKEFLAGS)
+
+../libwarc/base32/base32.o:
 	cd ../libwarc && $(MAKE) $(AM_MAKEFLAGS)
 
 build_info.c: $(srcdir)/Makefile.am $(srcdir)/build_info.c.in
