@@ -41,32 +41,53 @@ static int  warc_current_file_number;
 #define WARC_WRAP_METHOD(name)                                          \
     static bool warc_##name(void *record, char *u8_string)              \
     {                                                                   \
+      if (u8_string == NULL)                                            \
+        return true;                                                    \
       warc_u8_t *wu8_string = (warc_u8_t *)u8_string;                   \
       return WRecord_##name(record, wu8_string, w_strlen(wu8_string));  \
     }
 
 WARC_WRAP_METHOD (setTargetUri)
 WARC_WRAP_METHOD (setContentType)
-WARC_WRAP_METHOD (setDate)
 WARC_WRAP_METHOD (setRecordId)
 WARC_WRAP_METHOD (setFilename)
 WARC_WRAP_METHOD (setConcurrentTo)
 WARC_WRAP_METHOD (setContentFromString)
 WARC_WRAP_METHOD (setWarcInfoId)
-WARC_WRAP_METHOD (setIpAddress)
 WARC_WRAP_METHOD (setBlockDigest)
 WARC_WRAP_METHOD (setPayloadDigest)
-
-static bool
-warc_setContentFromFileName (void *record, char *u8_filename)
-{
-  return WRecord_setContentFromFileName (record, u8_filename);
-}
 
 static bool
 warc_setRecordType (void *record, const warc_rec_t t)
 {
   return WRecord_setRecordType (record, t);
+}
+
+/* Set the date header of the WARC record to the given timestamp string.
+   The current time will be used if timestamp is NULL. */
+static bool
+warc_setDate (void *record, char *timestamp)
+{
+  if (timestamp == NULL)
+    {
+      timestamp = alloca (21);
+      warc_timestamp (timestamp);
+    }
+  return WRecord_setDate (record, (warc_u8_t *)timestamp, w_strlen ((warc_u8_t *)timestamp));
+}
+
+/* Set the ip address header of the WARC record, unless ip is NULL. */
+static bool
+warc_setIpAddress (void *record, ip_address *ip)
+{
+  bool result = true;
+  if (ip != NULL)
+  {
+    warc_u8_t *ip_str = (warc_u8_t *)(strdup (print_address (ip)));
+    result = WRecord_setIpAddress (record, ip_str, w_strlen (ip_str));
+    free (ip_str);
+  }
+  return result;
 }
 
 
@@ -270,9 +291,6 @@ warc_write_warcinfo_record (char * filename)
   warc_current_winfo_uuid_str = (char *) malloc (48);
   warc_uuid_str (warc_current_winfo_uuid_str);
 
-  char warc_timestamp_str [21];
-  warc_timestamp (warc_timestamp_str);
-
   char *filename_copy, *filename_basename;
   filename_copy = strdup (filename);
   filename_basename = basename (filename_copy);
@@ -280,7 +298,7 @@ warc_write_warcinfo_record (char * filename)
   void * infoWRecord = bless (WRecord);
   warc_setRecordType (infoWRecord, WARC_INFO_RECORD);
   warc_setContentType (infoWRecord, "application/warc-fields");
-  warc_setDate (infoWRecord, warc_timestamp_str);
+  warc_setDate (infoWRecord, NULL);
   warc_setRecordId (infoWRecord, warc_current_winfo_uuid_str);
   warc_setFilename (infoWRecord, filename_basename);
 
@@ -457,25 +475,18 @@ warc_tempfile ()
 bool
 warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset)
 {
-  char * ip_str = NULL;
-  if (ip != NULL)
-    ip_str = strdup (print_address (ip));
-
   void * requestWRecord = bless (WRecord);
   warc_setRecordType (requestWRecord, WARC_REQUEST_RECORD);
   warc_setTargetUri (requestWRecord, url);
   warc_setContentType (requestWRecord, "application/http;msgtype=request");
   warc_setDate (requestWRecord, timestamp_str);
   warc_setRecordId (requestWRecord, concurrent_to_uuid);
-  if (ip_str != NULL)
-    warc_setIpAddress (requestWRecord, ip_str);
+  warc_setIpAddress (requestWRecord, ip);
   warc_setContentFromFile (requestWRecord, body, payload_offset);
 
   bool result = warc_store_record (requestWRecord);
 
   destroy (requestWRecord);
-  if (ip_str != NULL)
-    free (ip_str);
 
   /* destroy has also closed body. */
 
@@ -495,10 +506,6 @@ warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_u
 bool
 warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset)
 {
-  char * ip_str = NULL;
-  if (ip != NULL)
-    ip_str = strdup (print_address (ip));
-
   char response_uuid [48];
   warc_uuid_str (response_uuid);
 
@@ -509,15 +516,12 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_setDate (responseWRecord, timestamp_str);
   warc_setRecordId (responseWRecord, response_uuid);
   warc_setConcurrentTo (responseWRecord, concurrent_to_uuid);
-  if (ip_str != NULL)
-    warc_setIpAddress (responseWRecord, ip_str);
+  warc_setIpAddress (responseWRecord, ip);
   warc_setContentFromFile (responseWRecord, body, payload_offset);
 
   bool result = warc_store_record (responseWRecord);
 
   destroy (responseWRecord);
-  if (ip_str != NULL)
-    free (ip_str);
 
   /* destroy has also closed body. */
 
@@ -536,18 +540,8 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
 bool
 warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset)
 {
-  char * ip_str = NULL;
-  if (ip != NULL)
-    ip_str = strdup (print_address (ip));
-
   char resource_uuid [48];
   warc_uuid_str (resource_uuid);
-
-  if (timestamp_str == NULL)
-    {
-      timestamp_str = alloca (22);
-      warc_timestamp (timestamp_str);
-    }
 
   void * resourceWRecord = bless (WRecord);
   warc_setRecordType (resourceWRecord, WARC_RESOURCE_RECORD);
@@ -555,17 +549,13 @@ warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_setDate (resourceWRecord, timestamp_str);
   warc_setRecordId (resourceWRecord, resource_uuid);
   warc_setContentType (resourceWRecord, "application/octet-stream");
-  if (concurrent_to_uuid != NULL)
-    warc_setConcurrentTo (resourceWRecord, concurrent_to_uuid);
-  if (ip_str != NULL)
-    warc_setIpAddress (resourceWRecord, ip_str);
+  warc_setConcurrentTo (resourceWRecord, concurrent_to_uuid);
+  warc_setIpAddress (resourceWRecord, ip);
   warc_setContentFromFile (resourceWRecord, body, payload_offset);
 
   bool result = warc_store_record (resourceWRecord);
 
   destroy (resourceWRecord);
-  if (ip_str != NULL)
-    free (ip_str);
 
   /* destroy has also closed body. */
 
