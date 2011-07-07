@@ -26,4 +26,5 @@ configure
 *.pod
 *.info
 *.1
+*.swp
 gnulib/
