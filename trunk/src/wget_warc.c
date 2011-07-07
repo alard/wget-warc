@@ -55,6 +55,7 @@ WARC_WRAP_METHOD (setContentFromString)
 WARC_WRAP_METHOD (setWarcInfoId)
 WARC_WRAP_METHOD (setIpAddress)
 WARC_WRAP_METHOD (setBlockDigest)
+WARC_WRAP_METHOD (setPayloadDigest)
 
 static bool
 warc_setContentFromFileName (void *record, char *u8_filename)
@@ -62,31 +63,173 @@ warc_setContentFromFileName (void *record, char *u8_filename)
   return WRecord_setContentFromFileName (record, u8_filename);
 }
 
-/* Use the contents of file as the body of the WARC record.
-   Note: calling  destroy (record)  will also close the file. */
-static bool
-warc_setContentFromFile (void *record, FILE *file)
-{
-  /* Calculate the block digest. */
-  char sha1_resblock[SHA1_DIGEST_SIZE];
-  char sha1_resblock_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
-  rewind (file);
-  if (sha1_stream (file, sha1_resblock) == 0)
-    {
-      base32_encode ((unsigned char*)sha1_resblock, SHA1_DIGEST_SIZE, (unsigned char*)(sha1_resblock_base32 + 5));
-      memcpy (sha1_resblock_base32, "sha1:", 5);
-      sha1_resblock_base32[BASE32_LEN(SHA1_DIGEST_SIZE)] = '\0';
-
-      warc_setBlockDigest (record, sha1_resblock_base32);
-    }
-
-  return WRecord_setContentFromFile (record, file);
-}
-
 static bool
 warc_setRecordType (void *record, const warc_rec_t t)
 {
   return WRecord_setRecordType (record, t);
+}
+
+
+/* warc_sha1_stream_with_payload is a modified copy of sha1_stream
+   from gnulib/sha1.c.  This version calculates two digests in one go.
+
+   Compute SHA1 message digests for bytes read from STREAM.  The
+   digest of the complete file will be written into the 16 bytes
+   beginning at RES_BLOCK.
+   
+   If payload_offset >= 0, a second digest will be calculated of the
+   portion of the file starting at payload_offset and continuing to
+   the end of the file.  The digest number will be written into the
+   16 bytes beginning ad RES_PAYLOAD.  */
+static int
+warc_sha1_stream_with_payload (FILE *stream, void *res_block, void *res_payload, long int payload_offset)
+{
+#define BLOCKSIZE 32768
+
+  struct sha1_ctx ctx_block;
+  struct sha1_ctx ctx_payload;
+  long int pos;
+  size_t sum;
+
+  char *buffer = malloc (BLOCKSIZE + 72);
+  if (!buffer)
+    return 1;
+
+  /* Initialize the computation context.  */
+  sha1_init_ctx (&ctx_block);
+  if (payload_offset >= 0)
+    sha1_init_ctx (&ctx_payload);
+
+  pos = 0;
+
+  /* Iterate over full file contents.  */
+  while (1)
+    {
+      /* We read the file in blocks of BLOCKSIZE bytes.  One call of the
+         computation function processes the whole buffer so that with the
+         next round of the loop another block can be read.  */
+      size_t n;
+      sum = 0;
+
+      /* Read block.  Take care for partial reads.  */
+      while (1)
+        {
+          n = fread (buffer + sum, 1, BLOCKSIZE - sum, stream);
+
+          sum += n;
+          pos += n;
+
+          if (sum == BLOCKSIZE)
+            break;
+
+          if (n == 0)
+            {
+              /* Check for the error flag IFF N == 0, so that we don't
+                 exit the loop after a partial read due to e.g., EAGAIN
+                 or EWOULDBLOCK.  */
+              if (ferror (stream))
+                {
+                  free (buffer);
+                  return 1;
+                }
+              goto process_partial_block;
+            }
+
+          /* We've read at least one byte, so ignore errors.  But always
+             check for EOF, since feof may be true even though N > 0.
+             Otherwise, we could end up calling fread after EOF.  */
+          if (feof (stream))
+            goto process_partial_block;
+        }
+
+      /* Process buffer with BLOCKSIZE bytes.  Note that
+                        BLOCKSIZE % 64 == 0
+       */
+      sha1_process_block (buffer, BLOCKSIZE, &ctx_block);
+      if (payload_offset >= 0 && payload_offset < pos)
+        {
+          /* At least part of the buffer contains data from payload. */
+          int start_of_payload = payload_offset - (pos - BLOCKSIZE);
+          if (start_of_payload <= 0)
+            /* All bytes in the buffer belong to the payload. */
+            start_of_payload = 0;
+
+          /* Process the payload part of the buffer.
+             Note: we can't use  sha1_process_block  here even if we
+             process the complete buffer.  Because the payload doesn't
+             have to start with a full block, there may still be some
+             bytes left from the previous buffer.  Therefore, we need
+             to continue with  sha1_process_bytes.  */
+          sha1_process_bytes (buffer + start_of_payload, BLOCKSIZE - start_of_payload, &ctx_payload);
+        }
+    }
+
+ process_partial_block:;
+
+  /* Process any remaining bytes.  */
+  if (sum > 0)
+    {
+      sha1_process_bytes (buffer, sum, &ctx_block);
+      if (payload_offset >= 0 && payload_offset < pos)
+        {
+          /* At least part of the buffer contains data from payload. */
+          int start_of_payload = payload_offset - (pos - sum);
+          if (start_of_payload <= 0)
+            /* All bytes in the buffer belong to the payload. */
+            start_of_payload = 0;
+
+          /* Process the payload part of the buffer. */
+          sha1_process_bytes (buffer + start_of_payload, sum - start_of_payload, &ctx_payload);
+        }
+    }
+
+  /* Construct result in desired memory.  */
+  sha1_finish_ctx (&ctx_block,   res_block);
+  if (payload_offset >= 0)
+    sha1_finish_ctx (&ctx_payload, res_payload);
+  free (buffer);
+  return 0;
+
+#undef BLOCKSIZE
+}
+
+/* Use the contents of file as the body of the WARC record.
+   This method will calculate the block digest and, if payload_offset >= 0,
+   will also calculate the payload digest of the payload starting at the
+   provided offset.
+   Note: calling  destroy (record)  will also close the file. */
+static bool
+warc_setContentFromFile (void *record, FILE *file, long int payload_offset)
+{
+  if (opt.warc_digests_enabled)
+    {
+      /* Calculate the block and payload digests. */
+      char sha1_res_block[SHA1_DIGEST_SIZE];
+      char sha1_res_block_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
+      char sha1_res_payload[SHA1_DIGEST_SIZE];
+      char sha1_res_payload_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
+
+      rewind (file);
+      if (warc_sha1_stream_with_payload (file, sha1_res_block, sha1_res_payload, payload_offset) == 0)
+        {
+          /* Convert block digest to base32 encoding and add to record. */
+          base32_encode ((unsigned char*)sha1_res_block, SHA1_DIGEST_SIZE, (unsigned char*)(sha1_res_block_base32 + 5));
+          memcpy (sha1_res_block_base32, "sha1:", 5);
+          sha1_res_block_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 5] = '\0';
+          warc_setBlockDigest (record, sha1_res_block_base32);
+
+          if (payload_offset >= 0)
+            {
+              /* Convert payload digest to base32 encoding and add to record. */
+              base32_encode ((unsigned char*)sha1_res_payload, SHA1_DIGEST_SIZE, (unsigned char*)(sha1_res_payload_base32 + 5));
+              memcpy (sha1_res_payload_base32, "sha1:", 5);
+              sha1_res_payload_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 5] = '\0';
+              warc_setPayloadDigest (record, sha1_res_payload_base32);
+            }
+        }
+    }
+
+  return WRecord_setContentFromFile (record, file);
 }
 
 
@@ -301,7 +444,7 @@ warc_tempfile ()
    Calling this function will close body.
    Returns true on success, false on error. */
 bool
-warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body)
+warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset)
 {
   char * ip_str = NULL;
   if (ip != NULL)
@@ -315,7 +458,7 @@ warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_u
   warc_setRecordId (requestWRecord, concurrent_to_uuid);
   if (ip_str != NULL)
     warc_setIpAddress (requestWRecord, ip_str);
-  warc_setContentFromFile (requestWRecord, body);
+  warc_setContentFromFile (requestWRecord, body, payload_offset);
 
   bool result = warc_store_record (requestWRecord);
 
@@ -339,7 +482,7 @@ warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_u
    Calling this function will close body.
    Returns true on success, false on error. */
 bool
-warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body)
+warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset)
 {
   char * ip_str = NULL;
   if (ip != NULL)
@@ -357,7 +500,7 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_setConcurrentTo (responseWRecord, concurrent_to_uuid);
   if (ip_str != NULL)
     warc_setIpAddress (responseWRecord, ip_str);
-  warc_setContentFromFile (responseWRecord, body);
+  warc_setContentFromFile (responseWRecord, body, payload_offset);
 
   bool result = warc_store_record (responseWRecord);
 
@@ -380,7 +523,7 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
    Calling this function will close body.
    Returns true on success, false on error. */
 bool
-warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body)
+warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset)
 {
   char * ip_str = NULL;
   if (ip != NULL)
@@ -405,7 +548,7 @@ warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_
     warc_setConcurrentTo (resourceWRecord, concurrent_to_uuid);
   if (ip_str != NULL)
     warc_setIpAddress (resourceWRecord, ip_str);
-  warc_setContentFromFile (resourceWRecord, body);
+  warc_setContentFromFile (resourceWRecord, body, payload_offset);
 
   bool result = warc_store_record (resourceWRecord);
 

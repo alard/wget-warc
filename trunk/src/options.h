@@ -91,6 +91,7 @@ struct options
   char *warc_tempdir;	/* WARC temp dir */
   wgint warc_maxsize;           /* WARC max archive size */
   bool warc_compression_enabled;  /* For GZIP compression. */
+  bool warc_digests_enabled;  /* For SHA1 digests. */
 
   char *user;			/* Generic username */
   char *passwd;			/* Generic password */
