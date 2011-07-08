@@ -1225,6 +1225,12 @@ for details.\n\n"));
                    "--continue will be disabled.\n"));
         opt.always_rest = false;
       }
+      if (opt.warc_cdx_dedup_filename != 0 && !opt.warc_digests_enabled)
+      {
+        fprintf (stderr,
+                 _("Digests are disabled; WARC deduplication will "
+                   "not find duplicate records.\n"));
+      }
     }
 
   if (opt.ask_passwd && opt.passwd)
