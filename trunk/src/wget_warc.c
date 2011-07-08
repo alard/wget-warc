@@ -605,7 +605,11 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
       timestamp_str_cdx[14] = '\0';
       
       /* Rewrite the checksum. */
-      char *checksum = (char *) WRecord_getPayloadDigest (responseWRecord) + 5; /* Skip the "sha1:" */
+      char *checksum = (char *) WRecord_getPayloadDigest (responseWRecord);
+      if (checksum != NULL)
+        checksum += 5; /* Skip the "sha1:" */
+      else
+        checksum = "-";
 
       if (mime_type == NULL || strlen(mime_type) == 0)
         mime_type = "-";
