@@ -289,6 +289,7 @@ static struct cmdline_option option_data[] =
     { "waitretry", 0, OPT_VALUE, "waitretry", -1 },
     { "warc-cdx", 0, OPT_BOOLEAN, "warccdx", -1 },
     { "warc-compression", 0, OPT_BOOLEAN, "warccompression", -1 },
+    { "warc-dedup", 0, OPT_VALUE, "warccdxdedup", -1 },
     { "warc-digests", 0, OPT_BOOLEAN, "warcdigests", -1 },
     { "warc-file", 0, OPT_VALUE, "warcfile", -1 },
     { "warc-header", 0, OPT_VALUE, "warcheader", -1 },
@@ -665,6 +666,8 @@ WARC options:\n"),
        --warc-max-size=NUMBER    set maximum size of WARC files to NUMBER.\n"),
     N_("\
        --warc-cdx                write CDX index files.\n"),
+    N_("\
+       --warc-dedup=FILENAME     do not store records listed in this CDX file.\n"),
     N_("\
        --no-warc-compression     do not compress WARC files with GZIP.\n"),
     N_("\

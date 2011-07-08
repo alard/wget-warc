@@ -89,6 +89,7 @@ struct options
 				   documents will be printed.  */
   char *warc_filename;		/* WARC output filename */
   char *warc_tempdir;	/* WARC temp dir */
+  char *warc_cdx_dedup_filename;	/* CDX file to be used for deduplication. */
   wgint warc_maxsize;           /* WARC max archive size */
   bool warc_compression_enabled;  /* For GZIP compression. */
   bool warc_digests_enabled;  /* For SHA1 digests. */

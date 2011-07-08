@@ -1475,7 +1475,7 @@ WIPRIVATE void WFile_writeRefersTo (FILE * wtfile,
                                     warc_u32_t s,
                                     warc_u64_t * datalength)
 {
-  w_fwrite ("WARC-Refers-To:", 16, 1, wtfile);
+  w_fwrite ("WARC-Refers-To: ", 16, 1, wtfile);
   (* datalength) += 16;
 
   w_fwrite (rec_id, s , 1, wtfile);

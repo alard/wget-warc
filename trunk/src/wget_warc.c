@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 
 #include "wget.h"
+#include "hash.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,6 +42,35 @@ static char *warc_current_filename;
    WARC file's filename. */
 static int  warc_current_file_number;
 
+/* The table of CDX records, if deduplication is enabled. */
+struct hash_table * warc_cdx_dedup_table;
+
+
+
+struct warc_cdx_record
+{
+  char *url;
+  char *uuid;
+  char digest[SHA1_DIGEST_SIZE];
+};
+
+static unsigned long
+warc_hash_sha1_digest (const void *key)
+{
+  /* We just use some of the first bytes of the digest. */
+  unsigned long v = 0;
+  memcpy (&v, key, sizeof (unsigned long));
+  return v;
+}
+
+static int
+warc_cmp_sha1_digest (const void *digest1, const void *digest2)
+{
+  return !memcmp (digest1, digest2, SHA1_DIGEST_SIZE);
+}
+
+
+
 
 /* Helper functions to fill WRecord objects.
    The warctools library uses its own types for strings and integers.  */
@@ -59,8 +89,9 @@ WARC_WRAP_METHOD (setRecordId)
 WARC_WRAP_METHOD (setFilename)
 WARC_WRAP_METHOD (setConcurrentTo)
 WARC_WRAP_METHOD (setWarcInfoId)
-WARC_WRAP_METHOD (setBlockDigest)
-WARC_WRAP_METHOD (setPayloadDigest)
+WARC_WRAP_METHOD (setRefersTo)
+WARC_WRAP_METHOD (setProfile)
+WARC_WRAP_METHOD (setTruncated)
 
 static bool
 warc_setRecordType (void *record, const warc_rec_t t)
@@ -93,6 +124,46 @@ warc_setIpAddress (void *record, ip_address *ip)
     free (ip_str);
   }
   return result;
+}
+
+/* Use the contents of file as the body of the WARC record.
+   Note: calling  destroy (record)  will also close the file. */
+static bool
+warc_setContentFromFile (void *record, FILE *file)
+{
+  return WRecord_setContentFromFile (record, file);
+}
+
+/* Set the block digest header of the WARC record.
+   sha1_digest is an SHA1 digest of SHA1_DIGEST_SIZE bytes. */
+static bool
+warc_setBlockDigest (void *record, unsigned char *sha1_digest)
+{
+  if (sha1_digest != NULL)
+    {
+      unsigned char sha1_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
+      base32_encode (sha1_digest, SHA1_DIGEST_SIZE, sha1_base32 + 5);
+      memcpy (sha1_base32, "sha1:", 5);
+      sha1_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 5] = '\0';
+      return WRecord_setBlockDigest (record, sha1_base32, w_strlen (sha1_base32));
+    }
+  return true;
+}
+
+/* Set the payload digest header of the WARC record.
+   sha1_digest is an SHA1 digest of SHA1_DIGEST_SIZE bytes. */
+static bool
+warc_setPayloadDigest (void *record, unsigned char *sha1_digest)
+{
+  if (sha1_digest != NULL)
+    {
+      unsigned char sha1_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
+      base32_encode (sha1_digest, SHA1_DIGEST_SIZE, sha1_base32 + 5);
+      memcpy (sha1_base32, "sha1:", 5);
+      sha1_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 5] = '\0';
+      return WRecord_setPayloadDigest (record, sha1_base32, w_strlen (sha1_base32));
+    }
+  return true;
 }
 
 
@@ -219,43 +290,31 @@ warc_sha1_stream_with_payload (FILE *stream, void *res_block, void *res_payload,
 #undef BLOCKSIZE
 }
 
-/* Use the contents of file as the body of the WARC record.
+
+/* Sets the digest headers of the record.
    This method will calculate the block digest and, if payload_offset >= 0,
    will also calculate the payload digest of the payload starting at the
-   provided offset.
-   Note: calling  destroy (record)  will also close the file. */
-static bool
-warc_setContentFromFile (void *record, FILE *file, long int payload_offset)
+   provided offset.  */
+void
+warc_calc_digests (void *record, FILE *file, long payload_offset)
 {
   if (opt.warc_digests_enabled)
     {
       /* Calculate the block and payload digests. */
-      char sha1_res_block[SHA1_DIGEST_SIZE];
-      char sha1_res_block_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
-      char sha1_res_payload[SHA1_DIGEST_SIZE];
-      char sha1_res_payload_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
+      unsigned char sha1_res_block[SHA1_DIGEST_SIZE];
+      unsigned char sha1_res_payload[SHA1_DIGEST_SIZE];
 
       rewind (file);
       if (warc_sha1_stream_with_payload (file, sha1_res_block, sha1_res_payload, payload_offset) == 0)
         {
-          /* Convert block digest to base32 encoding and add to record. */
-          base32_encode ((unsigned char*)sha1_res_block, SHA1_DIGEST_SIZE, (unsigned char*)(sha1_res_block_base32 + 5));
-          memcpy (sha1_res_block_base32, "sha1:", 5);
-          sha1_res_block_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 5] = '\0';
-          warc_setBlockDigest (record, sha1_res_block_base32);
+          warc_setBlockDigest (record, sha1_res_block);
 
           if (payload_offset >= 0)
             {
-              /* Convert payload digest to base32 encoding and add to record. */
-              base32_encode ((unsigned char*)sha1_res_payload, SHA1_DIGEST_SIZE, (unsigned char*)(sha1_res_payload_base32 + 5));
-              memcpy (sha1_res_payload_base32, "sha1:", 5);
-              sha1_res_payload_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 5] = '\0';
-              warc_setPayloadDigest (record, sha1_res_payload_base32);
+              warc_setPayloadDigest (record, sha1_res_payload);
             }
         }
     }
-
-  return WRecord_setContentFromFile (record, file);
 }
 
 
@@ -331,7 +390,9 @@ warc_write_warcinfo_record (char * filename)
     }
   fprintf(warc_tmp, "\r\n");
 
-  warc_setContentFromFile (infoWRecord, warc_tmp, -1);
+  warc_setContentFromFile (infoWRecord, warc_tmp);
+
+  warc_calc_digests (infoWRecord, warc_tmp, -1);
 
   /* Returns true on error. */
   if ( WFile_storeRecord (warc_current_wfile, infoWRecord, NULL) )
@@ -495,6 +556,140 @@ warc_init ()
           logprintf (LOG_NOTQUIET, _("Could not open WARC file.\n"));
           exit(1);
         }
+
+      if (opt.warc_cdx_dedup_filename != NULL)
+        {
+#define CDX_FIELDSEP " \t\r\n"
+          FILE *f = fopen (opt.warc_cdx_dedup_filename, "r");
+
+          int field_num_original_url = -1;
+          int field_num_checksum = -1;
+          int field_num_record_id = -1;
+
+          char *lineptr = NULL;
+          size_t n = 0;
+          size_t line_length;
+
+          /* The first line should contain the CDX header.
+             Format:  " CDX x x x x x"
+             where x are field type indicators.  For our purposes, we only
+             need 'a' (the original url), 'k' (the SHA1 checksum) and
+             'u' (the WARC record id). */
+          line_length = getline (&lineptr, &n, f);
+          if (line_length != -1)
+            {
+              /* Parse the CDX header. */
+              char *token;
+              char *save_ptr;
+              token = strtok_r (lineptr, CDX_FIELDSEP, &save_ptr);
+              
+              if (token != NULL && strcmp (token, "CDX") == 0)
+                {
+                  int field_num = 0;
+                  while (token != NULL)
+                    {
+                      token = strtok_r (NULL, CDX_FIELDSEP, &save_ptr);
+                      if (token != NULL)
+                        {
+                          switch (token[0])
+                            {
+                            case 'a':
+                              field_num_original_url = field_num;
+                              break;
+                            case 'k':
+                              field_num_checksum = field_num;
+                              break;
+                            case 'u':
+                              field_num_record_id = field_num;
+                              break;
+                            }
+                        }
+                      field_num++;
+                    }
+                }
+            }
+
+          /* If the file contains all three fields, read the complete file. */
+          if (field_num_original_url != -1
+              && field_num_checksum != -1
+              && field_num_record_id != -1)
+            {
+              /* Initialize the table. */
+              warc_cdx_dedup_table = hash_table_new (1000, warc_hash_sha1_digest, warc_cmp_sha1_digest);
+
+              do
+                {
+                  line_length = getline (&lineptr, &n, f);
+                  if (line_length != -1)
+                    {
+                      char *original_url = NULL;
+                      char *checksum = NULL;
+                      char *record_id = NULL;
+
+                      char *token;
+                      char *save_ptr;
+                      token = strtok_r (lineptr, CDX_FIELDSEP, &save_ptr);
+
+                      /* Read this line to get the fields we need. */
+                      int field_num = 0;
+                      while (token != NULL)
+                        {
+                          char **val;
+                          if (field_num == field_num_original_url)
+                            val = &original_url;
+                          else if (field_num == field_num_checksum)
+                            val = &checksum;
+                          else if (field_num == field_num_record_id)
+                            val = &record_id;
+                          else
+                            val = NULL;
+
+                          if (val != NULL)
+                            *val = strdup (token);
+
+                          token = strtok_r (NULL, CDX_FIELDSEP, &save_ptr);
+                          field_num++;
+                        }
+
+                      if (original_url != NULL && checksum != NULL && record_id != NULL)
+                        {
+                          /* For some extra efficiency, we decode the base32 encoded
+                             checksum value.  This should produce exactly SHA1_DIGEST_SIZE
+                             bytes.  */
+                          char *checksum_v = alloca (UNBASE32_LEN (strlen (checksum)));
+                          size_t checksum_l = base32_decode ((unsigned char *) checksum, (unsigned char *) checksum_v);
+                          free (checksum);
+
+                          if (checksum_l == SHA1_DIGEST_SIZE)
+                            {
+                              /* This is a valid line with a valid checksum. */
+                              struct warc_cdx_record * rec = malloc (sizeof (struct warc_cdx_record));
+                              rec->url = original_url;
+                              rec->uuid = record_id;
+                              memcpy (rec->digest, checksum_v, SHA1_DIGEST_SIZE);
+                              hash_table_put (warc_cdx_dedup_table, rec->digest, rec);
+                            }
+                          else
+                            {
+                              free (original_url);
+                              free (checksum);
+                              free (record_id);
+                            }
+                        }
+                    }
+                }
+              while (line_length != -1);
+
+              /* Print results. */
+              int nrecords = hash_table_count (warc_cdx_dedup_table);
+              logprintf (LOG_VERBOSE, ngettext ("Loaded %d record from CDX.\n\n",
+                                                "Loaded %d records from CDX.\n\n", nrecords),
+                                      nrecords);
+            }
+
+          fclose (f);
+#undef CDX_FIELDSEP
+        }
     }
 }
 
@@ -548,7 +743,9 @@ warc_write_request_record (char *url, char *timestamp_str, char *concurrent_to_u
   warc_setDate (requestWRecord, timestamp_str);
   warc_setRecordId (requestWRecord, concurrent_to_uuid);
   warc_setIpAddress (requestWRecord, ip);
-  warc_setContentFromFile (requestWRecord, body, payload_offset);
+  warc_setContentFromFile (requestWRecord, body);
+
+  warc_calc_digests (requestWRecord, body, payload_offset);
 
   bool result = warc_store_record (requestWRecord, NULL);
 
@@ -579,14 +776,71 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_uuid_str (response_uuid);
 
   void * responseWRecord = bless (WRecord);
-  warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
   warc_setTargetUri (responseWRecord, url);
-  warc_setContentType (responseWRecord, "application/http;msgtype=response");
   warc_setDate (responseWRecord, timestamp_str);
   warc_setRecordId (responseWRecord, response_uuid);
   warc_setConcurrentTo (responseWRecord, concurrent_to_uuid);
   warc_setIpAddress (responseWRecord, ip);
-  warc_setContentFromFile (responseWRecord, body, payload_offset);
+  warc_setContentType (responseWRecord, "application/http;msgtype=response");
+
+  if (opt.warc_digests_enabled)
+    {
+      /* Calculate the block and payload digests. */
+      unsigned char sha1_res_block[SHA1_DIGEST_SIZE];
+      unsigned char sha1_res_payload[SHA1_DIGEST_SIZE];
+
+      rewind (body);
+      if (warc_sha1_stream_with_payload (body, sha1_res_block, sha1_res_payload, payload_offset) == 0)
+        {
+          /* Decide (based on url + payload digest) if we have seen this
+             data before. */
+          if (warc_cdx_dedup_table != NULL)
+            {
+              /* Find a CDX record with this payload digest. */
+              char *key;
+              struct warc_cdx_record *rec_existing;
+              hash_table_get_pair (warc_cdx_dedup_table, sha1_res_payload, &key, &rec_existing);
+
+              if (rec_existing != NULL && !strcmp (rec_existing->url, url))
+                {
+                  /* Found an existing record. */
+                  logprintf (LOG_VERBOSE, _("Found exact match in CDX file. Saving revisit record to WARC.\n"));
+
+                  /* Make the record a revisit record. */
+                  warc_setRecordType (responseWRecord, WARC_REVISIT_RECORD);
+                  warc_setProfile (responseWRecord, "http://netpreserve.org/warc/1.0/revisit/identical-payload-digest");
+                  warc_setRefersTo (responseWRecord, rec_existing->uuid);
+                  warc_setTruncated (responseWRecord, "length");
+
+                  /* Remove the payload from the file. */
+                  if (payload_offset > 0)
+                    {
+                      if (ftruncate (fileno (body), payload_offset) == -1)
+                        return false;
+                    }
+
+                  warc_setContentFromFile (responseWRecord, body);
+
+                  /* Digests: payload refers to the old payload, but the block
+                     digest must be calculated based on the truncated block. */
+                  warc_setPayloadDigest (responseWRecord, sha1_res_payload);
+                  sha1_stream (body, sha1_res_block);
+                  warc_setBlockDigest (responseWRecord, sha1_res_block);
+
+                  bool result = warc_store_record (responseWRecord, NULL);
+                  destroy (responseWRecord);
+                  return result;
+                }
+            }
+        }
+
+      warc_setBlockDigest (responseWRecord, sha1_res_block);
+      warc_setPayloadDigest (responseWRecord, sha1_res_payload);
+    }
+
+  /* Not a revisit, just store the record. */
+  warc_setContentFromFile (responseWRecord, body);
+  warc_setRecordType (responseWRecord, WARC_RESPONSE_RECORD);
 
   unsigned long int offset;
   bool result = warc_store_record (responseWRecord, &offset);
@@ -651,7 +905,9 @@ warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_setContentType (resourceWRecord, "application/octet-stream");
   warc_setConcurrentTo (resourceWRecord, concurrent_to_uuid);
   warc_setIpAddress (resourceWRecord, ip);
-  warc_setContentFromFile (resourceWRecord, body, payload_offset);
+  warc_setContentFromFile (resourceWRecord, body);
+
+  warc_calc_digests (resourceWRecord, body, payload_offset);
 
   bool result = warc_store_record (resourceWRecord, NULL);
 
