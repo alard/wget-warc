@@ -429,8 +429,6 @@ warc_start_new_file ()
 
   if (warc_current_wfile != NULL)
     destroy (warc_current_wfile);
-  if (warc_current_cdx_file != NULL)
-    fclose (warc_current_cdx_file);
   if (warc_current_winfo_uuid_str)
     free (warc_current_winfo_uuid_str);
   if (warc_current_filename)
@@ -469,39 +467,39 @@ warc_start_new_file ()
       return false;
     }
 
-  if (opt.warc_cdx_enabled)
-    {
-      /* Open the CDX file. */
-      int new_filename_length = strlen (new_filename);
-      char *cdx_filename = alloca (new_filename_length + 4 + 1);
-      memcpy (cdx_filename, new_filename, new_filename_length);
-      memcpy (cdx_filename + new_filename_length, ".cdx", 5);
-      warc_current_cdx_file = fopen (cdx_filename, "a+");
-      if (warc_current_cdx_file == NULL)
-        {
-          logprintf (LOG_NOTQUIET, _("Error opening CDX file.\n"));
-          return false;
-        }
-
-      /* Print the CDX header.
-       *
-       * a - original url
-       * b - date
-       * m - mime type
-       * s - response code
-       * k - new style checksum
-       * r - redirect
-       * M - meta tags
-       * V - compressed arc file offset
-       * g - file name
-       * u - record-id
-       */
-      fprintf (warc_current_cdx_file, " CDX a b a m s k r M V g u\n");
-      fflush (warc_current_cdx_file);
-    }
-
   if (! warc_write_warcinfo_record (new_filename))
     return false;
+
+  return true;
+}
+
+/* Opens the CDX file for output. */
+static bool
+warc_start_cdx_file ()
+{
+  int filename_length = strlen (opt.warc_filename);
+  char *cdx_filename = alloca (filename_length + 4 + 1);
+  memcpy (cdx_filename, opt.warc_filename, filename_length);
+  memcpy (cdx_filename + filename_length, ".cdx", 5);
+  warc_current_cdx_file = fopen (cdx_filename, "a+");
+  if (warc_current_cdx_file == NULL)
+    return false;
+
+  /* Print the CDX header.
+   *
+   * a - original url
+   * b - date
+   * m - mime type
+   * s - response code
+   * k - new style checksum
+   * r - redirect
+   * M - meta tags
+   * V - compressed arc file offset
+   * g - file name
+   * u - record-id
+   */
+  fprintf (warc_current_cdx_file, " CDX a b a m s k r M V g u\n");
+  fflush (warc_current_cdx_file);
 
   return true;
 }
@@ -555,6 +553,15 @@ warc_init ()
         {
           logprintf (LOG_NOTQUIET, _("Could not open WARC file.\n"));
           exit(1);
+        }
+
+      if (opt.warc_cdx_enabled)
+        {
+          if (! warc_start_cdx_file ())
+            {
+              logprintf (LOG_NOTQUIET, _("Could not open CDX file.\n"));
+              exit(1);
+            }
         }
 
       if (opt.warc_cdx_dedup_filename != NULL)
@@ -703,6 +710,8 @@ warc_close ()
       free (warc_current_winfo_uuid_str);
       destroy (warc_current_wfile);
     }
+  if (warc_current_cdx_file != NULL)
+    fclose (warc_current_cdx_file);
 }
 
 /* Creates a temporary file for writing WARC output.
