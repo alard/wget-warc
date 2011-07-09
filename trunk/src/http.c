@@ -2441,7 +2441,12 @@ read_header:
 
               /* Read the response body and add it to warc_tmp.  */
               flags = 0;
-              int res = fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
+              if (contlen != -1)
+                flags |= rb_read_exactly;
+              if (chunked_transfer_encoding)
+                flags |= rb_chunked_transfer_encoding;
+              int res = fd_read_body (sock, warc_tmp, contlen != -1 ? contlen : 0,
+                                      0, NULL, NULL, NULL, flags, NULL);
               if (res >= 0)
                 {
                   /* Create a response record and write it to the WARC file.
@@ -2642,7 +2647,12 @@ read_header:
 
           /* Read the response body and add it to warc_tmp.  */
           flags = 0;
-          int res = fd_read_body (sock, warc_tmp, 0, 0, NULL, NULL, NULL, flags, NULL);
+          if (contlen != -1)
+            flags |= rb_read_exactly;
+          if (chunked_transfer_encoding)
+            flags |= rb_chunked_transfer_encoding;
+          int res = fd_read_body (sock, warc_tmp, contlen != -1 ? contlen : 0,
+                                  0, NULL, NULL, NULL, flags, NULL);
           if (res >= 0)
             {
               /* Create a response record and write it to the WARC file.
