@@ -138,7 +138,6 @@ WPUBLIC warc_i32_t WGetOpt_parse (void * const _self, warc_i32_t argc,
   const warc_u8_t * cp     = NIL;
   warc_i32_t            c      = 0;
   warc_i32_t	        opterr = 1;
-  warc_i32_t	        optopt = 0;
 
   /* preconditions */
   CASSERT (self);
@@ -160,7 +159,7 @@ WPUBLIC warc_i32_t WGetOpt_parse (void * const _self, warc_i32_t argc,
         }
     }
 
-  optopt = c = argv [OPTIND][SP];
+  c = argv [OPTIND][SP];
 
   if (c == ':' || (cp = w_index (WString_getText (FLAGS), c) ) == 0)
     {

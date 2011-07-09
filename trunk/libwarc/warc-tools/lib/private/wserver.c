@@ -1061,7 +1061,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
   while (WFile_hasMoreRecords (wfile) )
     {
       const void * al  = NIL; /* ANVL list object */
-      warc_bool_t  m   = WARC_FALSE;
       const warc_u8_t * string = NIL;
       warc_u32_t   tlen = 0;
 
@@ -1111,7 +1110,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<content-type value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getConcurrentTo (wrecord);
@@ -1119,7 +1117,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-concurrent-to value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getBlockDigest (wrecord);
@@ -1127,7 +1124,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-block-digest value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getPayloadDigest (wrecord);
@@ -1135,7 +1131,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-payload-digest value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getIpAddress (wrecord);
@@ -1143,7 +1138,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-ip-address value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getRefersTo (wrecord);
@@ -1151,7 +1145,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-refers-to value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getTargetUri (wrecord);
@@ -1159,7 +1152,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
         {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-taget-uri value=\"%s\"/>\r\n", (const char *) xmlstr );
-         m = WARC_TRUE;
         }
 
       string = WRecord_getTruncated (wrecord);
@@ -1167,7 +1159,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-truncated value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getWarcInfoId (wrecord);
@@ -1175,7 +1166,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-info-id value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getFilename (wrecord);
@@ -1183,7 +1173,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-filename value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getProfile (wrecord);
@@ -1191,7 +1180,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-profile value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getPayloadType (wrecord);
@@ -1199,7 +1187,6 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          {
          xml_recode ( makeS (string), xmlstr);
          evbuffer_add_printf (buf, "<warc-identrified-payload-type value=\"%s\"/>\r\n", (const char *) xmlstr);
-         m = WARC_TRUE;
          }
 
       string = WRecord_getSegmentOriginId (wrecord);
@@ -1209,14 +1196,12 @@ WPRIVATE warc_bool_t WBuildXmlOutput (void * fname, const void * server_name, vo
          evbuffer_add_printf (buf, "<warc-segment-origin-id value=\"%s\"/>\r\n", (const char *) xmlstr);
 
          evbuffer_add_printf (buf, "<warc-segment-nummber value=\"%d\"/>\r\n",  WRecord_getSegmentNumber (wrecord));
-         m = WARC_TRUE;
          }
 
       tlen = WRecord_getSegTotalLength (wrecord);
       if (tlen)
          {
          evbuffer_add_printf (buf, "<warc-segment-total-length value=\"%d\"/>\r\n", tlen);
-         m = WARC_TRUE;
          }
 
 

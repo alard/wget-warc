@@ -962,7 +962,7 @@ evhttp_read (int fd, short what, void *arg)
   struct evhttp_request *req = TAILQ_FIRST (&evcon->requests);
 
   struct evbuffer *buf = evcon->input_buffer;
-  int n, len;
+  int n;
 
   if (what == EV_TIMEOUT)
     {
@@ -972,7 +972,6 @@ evhttp_read (int fd, short what, void *arg)
 
   n = evbuffer_read (buf, fd, -1);
 
-  len = EVBUFFER_LENGTH (buf);
   event_debug ( ("%s: got %d on %d\n", __func__, n, fd) );
 
   if (n == -1)

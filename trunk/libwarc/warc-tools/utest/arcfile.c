@@ -76,9 +76,7 @@ CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
 
   while (AFile_hasMoreRecords (a) )
     {
-      FILE * fin = NIL;
       void * ar  = AFile_nextRecord (a);
-      warc_u64_t  size;
 
       unless (ar)
       {
@@ -104,9 +102,6 @@ CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
 
       /*ARecord_getContent (ar);*/
 
-      fin = 0;
-      size = 0;
-
       destroy (ar);
     }
 
@@ -126,9 +121,7 @@ void test2 (void)
 CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
   while (AFile_hasMoreRecords (a) )
     {
-      FILE * fin = NIL;
       void * ar  = AFile_nextRecord (a);
-      warc_u64_t  size;
 
       unless (ar)
       {
@@ -156,9 +149,6 @@ CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
 
     /*  ARecord_getContent (ar);*/
 
-      fin = 0;
-      size = 0;
-
       destroy (ar);
     }
 
@@ -178,9 +168,7 @@ void test3 (void)
 CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
   while (AFile_hasMoreRecords (a) )
     {
-      FILE * fin = NIL;
       void * ar  = AFile_nextRecord (a);
-      warc_u64_t  size;
 
       unless (ar)
       {
@@ -207,9 +195,6 @@ CU_ASSERT_STRING_EQUAL("filedesc://BnF-elec2007-20070524113301-00040-heritrix1.a
 
      /* ARecord_getContent (ar);*/
 
-      fin = 0;
-      size = 0;
-
       destroy (ar);
     }
 
@@ -230,9 +215,7 @@ fprintf (stdout, "/////////////////////////////////////test 4 //////////////////
 CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
   while (AFile_hasMoreRecords (a) )
     {
-      FILE * fin = NIL;
       void * ar  = AFile_nextRecord (a);
-      warc_u64_t  size;
 
       unless (ar)
       {
@@ -259,9 +242,6 @@ CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
 
       /*ARecord_getContent (ar);*/
 
-      fin = 0;
-      size = 0;
-
       destroy (ar);
     }
 
@@ -281,9 +261,7 @@ fprintf (stdout, "/////////////////////////////////////test 5 //////////////////
 CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
   while (AFile_hasMoreRecords (a) )
     {
-      FILE * fin = NIL;
       void * ar  = AFile_nextRecord (a);
-      warc_u64_t  size;
 
       unless (ar)
       {
@@ -310,9 +288,6 @@ CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
 
 /*      ARecord_getContent (ar);*/
 
-      fin = 0;
-      size = 0;
-
       destroy (ar);
     }
 
@@ -333,9 +308,7 @@ void test6 (void)
 CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
   while (AFile_hasMoreRecords (a) )
     {
-      FILE * fin = NIL;
       void * ar  = AFile_nextRecord (a);
-      warc_u64_t  size;
 
       unless (ar)
       {
@@ -362,9 +335,6 @@ CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
 
    /*   ARecord_getContent (ar);*/
 
-      fin = 0;
-      size = 0;
-
       destroy (ar);
     }
 
@@ -385,9 +355,7 @@ void test7 (void)
 CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
   while (AFile_hasMoreRecords (a) )
     {
-      FILE * fin = NIL;
       void * ar  = AFile_nextRecord (a);
-      warc_u64_t  size;
 
       unless (ar)
       {
@@ -414,9 +382,6 @@ CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
 
       /*ARecord_getContent (ar);*/
 
-      fin = 0;
-      size = 0;
-
       destroy (ar);
     }
 
@@ -437,9 +402,7 @@ fprintf (stdout, "/////////////////////////////////////test 8 //////////////////
 CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
   while (AFile_hasMoreRecords (a) )
     {
-      FILE * fin = NIL;
       void * ar  = AFile_nextRecord (a);
-      warc_u64_t  size;
 
       unless (ar)
       {
@@ -466,9 +429,6 @@ CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
 
      /* ARecord_getContent (ar);*/
 
-      fin = 0;
-      size = 0;
-
       destroy (ar);
     }
 
@@ -489,9 +449,7 @@ void test9 (void)
 CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
   while (AFile_hasMoreRecords (a) )
     {
-      FILE * fin = NIL;
       void * ar  = AFile_nextRecord (a);
-      warc_u64_t  size;
 
       unless (ar)
       {
@@ -517,9 +475,6 @@ CU_ASSERT_PTR_NOT_EQUAL(a,NIL);
         }
 
      /* ARecord_getContent (ar);*/
-
-      fin = 0;
-      size = 0;
 
       destroy (ar);
     }
