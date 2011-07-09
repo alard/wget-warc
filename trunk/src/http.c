@@ -2155,11 +2155,97 @@ read_header:
   if (statcode == HTTP_STATUS_UNAUTHORIZED)
     {
       /* Authorization is required.  */
-      if (keep_alive && !head_only
-          && skip_short_body (sock, contlen, chunked_transfer_encoding))
-        CLOSE_FINISH (sock);
+
+      /* Normally we are not interested in the response body.
+         But if we are writing a WARC file we are: we like to keep everyting.  */
+      if (warc_enabled)
+        {
+          /* Open a temporary file where we can write the response before we
+             add it to the WARC record.  */
+          int warcerr = 0;
+          warc_tmp = warc_tempfile ();
+          if (warc_tmp == NULL)
+            warcerr = WARC_TMP_FOPENERR;
+
+          if (warcerr == 0)
+            {
+              /* We should keep the response headers for the WARC record.  */
+              int head_len = strlen (head);
+              int warc_tmp_written = fwrite (head, 1, head_len, warc_tmp);
+              if (warc_tmp_written != head_len)
+                warcerr = WARC_TMP_FWRITEERR;
+              warc_payload_offset = head_len;
+            }
+
+          if (warcerr != 0)
+            {
+              CLOSE_INVALIDATE (sock);
+              request_free (req);
+              xfree_null (message);
+              resp_free (resp);
+              xfree (head);
+              if (warc_tmp != NULL)
+                fclose (warc_tmp);
+              return warcerr;
+            }
+
+          /* Read the response body and add it to warc_tmp.  */
+          flags = 0;
+          if (contlen != -1)
+            flags |= rb_read_exactly;
+          if (chunked_transfer_encoding)
+            flags |= rb_chunked_transfer_encoding;
+          int res = fd_read_body (sock, warc_tmp, contlen != -1 ? contlen : 0,
+                                  0, NULL, NULL, NULL, flags, NULL);
+          if (res >= 0)
+            {
+              /* Create a response record and write it to the WARC file.
+                 Note: per the WARC standard, the request and response should share
+                 the same date header.  We re-use the timestamp of the request.
+                 The response record should also refer to the uuid of the request.  */
+              type = resp_header_strdup (resp, "Content-Type");
+              bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset, type, statcode, hs->newloc);
+              xfree_null (type);
+
+              if (! warc_result)
+                {
+                  CLOSE_INVALIDATE (sock);
+                  request_free (req);
+                  xfree_null (message);
+                  resp_free (resp);
+                  xfree (head);
+                  return WARC_ERR;
+                }
+              else
+                CLOSE_FINISH (sock);
+
+              /* warc_write_response_record has closed warc_tmp. */
+            }
+          else if (res == -2)
+            {
+              /* Error while writing to warc_tmp. */
+              if (warc_tmp != NULL)
+                fclose (warc_tmp);
+              CLOSE_INVALIDATE (sock);
+              request_free (req);
+              xfree_null (message);
+              resp_free (resp);
+              xfree (head);
+              return WARC_TMP_FWRITEERR;
+            }
+          else
+            CLOSE_INVALIDATE (sock);
+        }
       else
-        CLOSE_INVALIDATE (sock);
+        {
+          /* Since WARC is disabled, we are not interested in the response body.  */
+          if (keep_alive && !head_only
+              && skip_short_body (sock, contlen, chunked_transfer_encoding))
+            CLOSE_FINISH (sock);
+          else
+            CLOSE_INVALIDATE (sock);
+        }
+
       pconn.authorized = false;
       if (!auth_finished && (user && passwd))
         {
