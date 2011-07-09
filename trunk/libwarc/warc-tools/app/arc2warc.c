@@ -287,7 +287,7 @@ int main (int argc, const char ** argv)
         free_err (13);
 
       /* save the WARC record into the WARC file */
-      b = WFile_storeRecord (w, wr);
+      b = WFile_storeRecord (w, wr, NIL);
 
       if (b)
         free_err (14);

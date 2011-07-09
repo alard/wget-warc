@@ -201,7 +201,7 @@ void test1 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -351,7 +351,7 @@ fprintf(stdout,"////////////////////////////test 2 /////////////////////////////
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_PASS( "record not stored\n");
       destroy (r);
@@ -493,7 +493,7 @@ void test3 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -622,7 +622,7 @@ void test3 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -828,7 +828,7 @@ void test4 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -1021,7 +1021,7 @@ void test4 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -1225,7 +1225,7 @@ void test5 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -1418,7 +1418,7 @@ void test5 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -1624,7 +1624,7 @@ void test6 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -1829,7 +1829,7 @@ void test7 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -2034,7 +2034,7 @@ fprintf(stdout,"////////////////////////////test 8 /////////////////////////////
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -2240,7 +2240,7 @@ void test9 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -2446,7 +2446,7 @@ void test10 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -2651,7 +2651,7 @@ void test11 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -2858,7 +2858,7 @@ void test12 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -3064,7 +3064,7 @@ void test13 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -3204,7 +3204,7 @@ void test14 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -3347,7 +3347,7 @@ void test15 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -3468,7 +3468,7 @@ void test15 (void)
       return;
     }
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);
@@ -4421,7 +4421,7 @@ void test24 (void)
       return;
     }*/
 
-  if (WFile_storeRecord (w, r) )
+  if (WFile_storeRecord (w, r, NIL) )
     {
       CU_FAIL( "record not stored\n");
       destroy (r);

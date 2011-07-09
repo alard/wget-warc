@@ -116,7 +116,7 @@ void test1 (void)
         }
         else CU_PASS (" retrieve the ArcRecord object");
 
-      if (WFile_storeRecord (w, wr) )
+      if (WFile_storeRecord (w, wr, NIL) )
        { CU_FAIL( "failed to write the WRecord");}
     else CU_PASS (" retrieve the ArcRecord object");
 
@@ -261,7 +261,7 @@ void test3 (void)
   else CU_PASS(" pass content to the Warc Record");
 
 
-      if (WFile_storeRecord (w, wr) )
+      if (WFile_storeRecord (w, wr, NIL) )
         {CU_FAIL("failed to write the WRecord");}
       else CU_PASS("write the WRecord");
       destroy (wr);
@@ -430,7 +430,7 @@ CU_ASSERT_PTR_NOT_EQUAL(w,NIL);
         }
 else CU_PASS( "pass content to the Warc Record");
 
-      if (WFile_storeRecord (w, wr) )
+      if (WFile_storeRecord (w, wr, NIL) )
 {       CU_FAIL("failed to write the WRecord");}
 else  CU_PASS("write the WRecord");
 
@@ -651,7 +651,7 @@ CU_ASSERT_PTR_NOT_EQUAL(w,NIL);
         }
 else CU_PASS ("pass content to the Warc Record");
 
-      if (WFile_storeRecord (w, wr) )
+      if (WFile_storeRecord (w, wr, NIL) )
       { CU_FAIL("failed to write the WRecord");}
 else CU_PASS(" write the WRecord");
       destroy (wr);
@@ -731,7 +731,7 @@ CU_ASSERT_PTR_NOT_EQUAL(w,NIL);
 	else CU_FAIL (" pass content to the Warc Record");
 
 
-      if (WFile_storeRecord (w, wr) )
+      if (WFile_storeRecord (w, wr, NIL) )
        { CU_PASS("failed to write the WRecord");}
     else CU_FAIL(" write the WRecord");
 
@@ -811,7 +811,7 @@ CU_ASSERT_PTR_NOT_EQUAL(w,NIL);
       else  CU_PASS (
                    " pass content to the Warc Record");
 
-      if (WFile_storeRecord (w, wr) )
+      if (WFile_storeRecord (w, wr, NIL) )
        { CU_FAIL ("failed to write the WRecord");}
          else CU_PASS("write the WRecord");
 
@@ -916,7 +916,7 @@ CU_ASSERT_PTR_NOT_EQUAL(w,NIL);
 	else CU_PASS (
                    " pass content to the Warc Record");
 
-      if (WFile_storeRecord (w, wr) )
+      if (WFile_storeRecord (w, wr, NIL) )
         {
          CU_PASS ( "failed to write the WRecord");
           destroy (a);
@@ -1052,7 +1052,7 @@ CU_ASSERT_PTR_NOT_EQUAL(w,NIL);
         }
 
 	else CU_PASS("pass content to the Warc Record");
-      if (WFile_storeRecord (w, wr) )
+      if (WFile_storeRecord (w, wr, NIL) )
         {CU_FAIL("failed to write the WRecord");}
              CU_PASS("write the WRecord");
 
@@ -1181,7 +1181,7 @@ CU_ASSERT_PTR_NOT_EQUAL(w,NIL);
         }
        else CU_PASS("pass content to the Warc Record");
 
-      if (WFile_storeRecord (w, wr) )
+      if (WFile_storeRecord (w, wr, NIL) )
        { CU_FAIL("failed to write the WRecord");}
 	else CU_PASS(" write the WRecord");
           
@@ -1308,7 +1308,7 @@ CU_ASSERT_PTR_NOT_EQUAL(w,NIL);
         }
 else CU_FAIL (" pass content to the Warc Record");
 
-      if (WFile_storeRecord (w, wr) )
+      if (WFile_storeRecord (w, wr, NIL) )
       {  CU_PASS ("failed to write the WRecord");}
 else CU_FAIL(" write the WRecord");
 
