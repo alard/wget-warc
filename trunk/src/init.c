@@ -382,8 +382,9 @@ defaults (void)
 char *
 home_dir (void)
 {
-  static char buf[PATH_MAX];
-  static char *home;
+  static char *buf = NULL;
+  static char *home, *ret;
+  int len;
 
   if (!home)
     {
@@ -396,12 +397,21 @@ home_dir (void)
           const char *_w32_get_argv0 (void); /* in libwatt.a/pcconfig.c */
           char *p;
 
-          strcpy (buf, _w32_get_argv0 ());
+          buff = _w32_get_argv0 ();
+
           p = strrchr (buf, '/');            /* djgpp */
           if (!p)
             p = strrchr (buf, '\\');          /* others */
           assert (p);
-          *p = '\0';
+
+          len = p - buff + 1;
+          buff = malloc (len + 1);
+          if (buff == NULL)
+            return NULL;
+
+          strncpy (buff, _w32_get_argv0 (), len);
+          buff[len] = '\0';
+
           home = buf;
 #elif !defined(WINDOWS)
           /* If HOME is not defined, try getting it from the password
@@ -409,8 +419,7 @@ home_dir (void)
           struct passwd *pwd = getpwuid (getuid ());
           if (!pwd || !pwd->pw_dir)
             return NULL;
-          strcpy (buf, pwd->pw_dir);
-          home = buf;
+          home = pwd->pw_dir;
 #else  /* !WINDOWS */
           /* Under Windows, if $HOME isn't defined, use the directory where
              `wget.exe' resides.  */
@@ -419,7 +428,11 @@ home_dir (void)
         }
     }
 
-  return home ? xstrdup (home) : NULL;
+  ret = home ? xstrdup (home) : NULL;
+  if (buf)
+    free (buf);
+
+  return ret;
 }
 
 /* Check the 'WGETRC' environment variable and return the file name
