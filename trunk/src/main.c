@@ -1205,32 +1205,32 @@ for details.\n\n"));
   if (opt.warc_filename != 0)
     {
       if (opt.noclobber)
-      {
-        fprintf (stderr,
-                 _("WARC output does not work with --no-clobber, "
-                   "--no-clobber will be disabled.\n"));
-        opt.noclobber = false;
-      }
+        {
+          fprintf (stderr,
+                   _("WARC output does not work with --no-clobber, "
+                     "--no-clobber will be disabled.\n"));
+          opt.noclobber = false;
+        }
       if (opt.timestamping)
-      {
-        fprintf (stderr,
-                 _("WARC output does not work with timestamping, "
-                   "timestamping will be disabled.\n"));
-        opt.timestamping = false;
-      }
+        {
+          fprintf (stderr,
+                   _("WARC output does not work with timestamping, "
+                     "timestamping will be disabled.\n"));
+          opt.timestamping = false;
+        }
       if (opt.always_rest)
-      {
-        fprintf (stderr,
-                 _("WARC output does not work with --continue, "
-                   "--continue will be disabled.\n"));
-        opt.always_rest = false;
-      }
+        {
+          fprintf (stderr,
+                   _("WARC output does not work with --continue, "
+                     "--continue will be disabled.\n"));
+          opt.always_rest = false;
+        }
       if (opt.warc_cdx_dedup_filename != 0 && !opt.warc_digests_enabled)
-      {
-        fprintf (stderr,
-                 _("Digests are disabled; WARC deduplication will "
-                   "not find duplicate records.\n"));
-      }
+        {
+          fprintf (stderr,
+                   _("Digests are disabled; WARC deduplication will "
+                     "not find duplicate records.\n"));
+        }
     }
 
   if (opt.ask_passwd && opt.passwd)
