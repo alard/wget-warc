@@ -370,7 +370,7 @@ defaults (void)
 
   opt.useservertimestamps = true;
 
-  opt.warc_maxsize = 1024 * 1024 * 1024;
+  opt.warc_maxsize = 0; /* 1024 * 1024 * 1024; */
   opt.warc_compression_enabled = true;
   opt.warc_digests_enabled = true;
   opt.warc_cdx_enabled = false;
