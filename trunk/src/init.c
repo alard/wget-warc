@@ -269,6 +269,7 @@ static const struct {
   { "warcdigests",      &opt.warc_digests_enabled, cmd_boolean },
   { "warcfile",         &opt.warc_filename,     cmd_file },
   { "warcheader",       NULL,                   cmd_spec_warc_header },
+  { "warckeeplog",      &opt.warc_keep_log,     cmd_boolean },
   { "warcmaxsize",      &opt.warc_maxsize,      cmd_bytes },
   { "warctempdir",      &opt.warc_tempdir,      cmd_directory },
 #ifdef USE_WATT32
@@ -375,6 +376,7 @@ defaults (void)
   opt.warc_cdx_enabled = false;
   opt.warc_cdx_dedup_filename = NULL;
   opt.warc_tempdir = NULL;
+  opt.warc_keep_log = true;
 }
 
 /* Return the user's home directory (strdup-ed), or NULL if none is

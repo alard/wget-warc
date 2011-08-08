@@ -94,6 +94,7 @@ struct options
   bool warc_compression_enabled;  /* For GZIP compression. */
   bool warc_digests_enabled;  /* For SHA1 digests. */
   bool warc_cdx_enabled;      /* Create CDX files? */
+  bool warc_keep_log;         /* Store the log file in a WARC record. */
   char **warc_user_headers;		/* User-defined WARC header(s). */
 
   char *user;			/* Generic username */

@@ -24,6 +24,14 @@ extern char *version_string;
 extern char *program_argstring;
 
 
+/* The log file (a temporary file that contains a copy
+   of the wget log). */
+static void *warc_log_fp;
+
+/* The manifest file (a temporary file that contains the
+   warcinfo uuid of every file in this crawl). */
+static void *warc_manifest_fp;
+
 /* The current WARC file (or NULL, if WARC is disabled).
    This is a pointer to a WFile object. */
 static void *warc_current_wfile;
@@ -412,6 +420,7 @@ warc_write_warcinfo_record (char * filename)
 }
 
 /* Opens a new WARC file.
+   If META is true, generates a filename ending with 'meta.warc.gz'.
    
    This method will:
    1. close the current WARC file (if there is one);
@@ -422,7 +431,7 @@ warc_write_warcinfo_record (char * filename)
    Returns true on success, false otherwise.
    */
 static bool
-warc_start_new_file ()
+warc_start_new_file (bool meta)
 {
   if (opt.warc_filename == NULL)
     return false;
@@ -444,7 +453,9 @@ warc_start_new_file ()
   char *extension = (opt.warc_compression_enabled ? "warc.gz" : "warc");
 
   /* If max size is enabled, we add a serial number to the file names. */
-  if (opt.warc_maxsize > 0)
+  if (meta)
+    sprintf (new_filename, "%s-meta.%s", opt.warc_filename, extension);
+  else if (opt.warc_maxsize > 0)
     sprintf (new_filename, "%s-%05d.%s", opt.warc_filename, warc_current_file_number, extension);
   else
     sprintf (new_filename, "%s.%s", opt.warc_filename, extension);
@@ -469,6 +480,10 @@ warc_start_new_file ()
 
   if (! warc_write_warcinfo_record (new_filename))
     return false;
+
+  /* Add warcinfo uuid to manifest. */
+  if (warc_manifest_fp)
+    fprintf (warc_manifest_fp, "%s\n", warc_current_winfo_uuid_str);
 
   return true;
 }
@@ -656,7 +671,7 @@ warc_store_record (void * record, unsigned long int * offset)
       /* If the WARC file is full, start a new file. */
       if ( WFile_isFull (warc_current_wfile) )
         {
-          if (! warc_start_new_file ())
+          if (! warc_start_new_file (false))
             {
               logprintf (LOG_NOTQUIET, _("Could not open new WARC file.\n"));
               return false;
@@ -698,8 +713,26 @@ warc_init ()
             }
         }
 
+      warc_manifest_fp = warc_tempfile ();
+      if (warc_manifest_fp == NULL)
+        {
+          logprintf (LOG_NOTQUIET, _("Could not open temporary WARC manifest file.\n"));
+          exit(1);
+        }
+
+      if (opt.warc_keep_log)
+        {
+          warc_log_fp = warc_tempfile ();
+          if (warc_log_fp == NULL)
+            {
+              logprintf (LOG_NOTQUIET, _("Could not open temporary WARC log file.\n"));
+              exit(1);
+            }
+          log_set_warc_log_fp (warc_log_fp);
+        }
+
       warc_current_file_number = -1;
-      if (! warc_start_new_file ())
+      if (! warc_start_new_file (false))
         {
           logprintf (LOG_NOTQUIET, _("Could not open WARC file.\n"));
           exit(1);
@@ -716,11 +749,60 @@ warc_init ()
     }
 }
 
+/* Writes metadata (manifest, configuration, log file) to the WARC file. */
+void
+warc_write_metadata ()
+{
+  /* If there are multiple WARC files, the metadata should be written to a separate file. */
+  if (opt.warc_maxsize > 0)
+    warc_start_new_file (true);
+
+  char manifest_uuid [48];
+  warc_uuid_str (manifest_uuid);
+
+  fflush (warc_manifest_fp);
+  warc_write_resource_record (manifest_uuid,
+                              "metadata://gnu.org/software/wget/warc/MANIFEST.txt",
+                              NULL, NULL, NULL, "text/plain",
+                              warc_manifest_fp, -1);
+  /* warc_write_resource_record has closed warc_manifest_fp. */
+
+  FILE * warc_tmp_fp = warc_tempfile ();
+  if (warc_tmp_fp == NULL)
+    {
+      logprintf (LOG_NOTQUIET, _("Could not open temporary WARC file.\n"));
+      exit(1);
+    }
+  fflush (warc_tmp_fp);
+  fprintf (warc_tmp_fp, "%s\n", program_argstring);
+
+  warc_write_resource_record (manifest_uuid,
+                              "metadata://gnu.org/software/wget/warc/wget_arguments.txt",
+                              NULL, NULL, NULL, "text/plain",
+                              warc_tmp_fp, -1);
+  /* warc_write_resource_record has closed warc_tmp_fp. */
+
+  if (warc_log_fp != NULL)
+    {
+      warc_write_resource_record (NULL,
+                                  "metadata://gnu.org/software/wget/warc/wget.log",
+                                  NULL, manifest_uuid, NULL, "text/plain",
+                                  warc_log_fp, -1);
+      /* warc_write_resource_record has closed warc_log_fp. */
+
+      warc_log_fp = NULL;
+      log_set_warc_log_fp (NULL);
+    }
+}
+
 /* Finishes the WARC writing.
    This should be called at the end of the program. */
 void
 warc_close ()
 {
+  if (warc_current_wfile != NULL)
+    warc_write_metadata ();
+
   if (warc_current_wfile != NULL)
     {
       free (warc_current_winfo_uuid_str);
@@ -728,6 +810,11 @@ warc_close ()
     }
   if (warc_current_cdx_file != NULL)
     fclose (warc_current_cdx_file);
+  if (warc_log_fp != NULL)
+    {
+      fclose (warc_log_fp);
+      log_set_warc_log_fp (NULL);
+    }
 }
 
 /* Creates a temporary file for writing WARC output.
@@ -908,26 +995,33 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
 }
 
 /* Writes a resource record to the WARC file.
+   resource_uuid  is the uuid of the resource (or NULL),
    url  is the target uri of the resource,
    timestamp_str  is the timestamp (generated with warc_timestamp),
    concurrent_to_uuid  is the uuid of the request for that generated this resource
                  (generated with warc_uuid_str) or NULL,
    ip  is the ip address of the server (or NULL),
+   content_type  is the mime type of the body (or NULL),
    body  is a pointer to a file containing the resource data.
    Calling this function will close body.
    Returns true on success, false on error. */
 bool
-warc_write_resource_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset)
+warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, char *content_type, FILE *body, long int payload_offset)
 {
-  char resource_uuid [48];
-  warc_uuid_str (resource_uuid);
+  if (resource_uuid == NULL)
+    {
+      resource_uuid = alloca (48);
+      warc_uuid_str (resource_uuid);
+    }
 
   void * resourceWRecord = bless (WRecord);
   warc_setRecordType (resourceWRecord, WARC_RESOURCE_RECORD);
   warc_setTargetUri (resourceWRecord, url);
   warc_setDate (resourceWRecord, timestamp_str);
   warc_setRecordId (resourceWRecord, resource_uuid);
-  warc_setContentType (resourceWRecord, "application/octet-stream");
+  if (content_type == NULL)
+    content_type = "application/octet-stream";
+  warc_setContentType (resourceWRecord, content_type);
   warc_setConcurrentTo (resourceWRecord, concurrent_to_uuid);
   warc_setIpAddress (resourceWRecord, ip);
   warc_setContentFromFile (resourceWRecord, body);

@@ -293,6 +293,7 @@ static struct cmdline_option option_data[] =
     { "warc-digests", 0, OPT_BOOLEAN, "warcdigests", -1 },
     { "warc-file", 0, OPT_VALUE, "warcfile", -1 },
     { "warc-header", 0, OPT_VALUE, "warcheader", -1 },
+    { "warc-keep-log", 0, OPT_BOOLEAN, "warckeeplog", -1 },
     { "warc-max-size", 0, OPT_VALUE, "warcmaxsize", -1 },
     { "warc-tempdir", 0, OPT_VALUE, "warctempdir", -1 },
 #ifdef USE_WATT32
@@ -673,6 +674,8 @@ WARC options:\n"),
     N_("\
        --no-warc-digests         do not calculate SHA1 digests.\n"),
     N_("\
+       --no-warc-keep-log        do not store the log file in a WARC record.\n"),
+    N_("\
        --warc-tempdir=DIRECTORY  location for temporary files created by the\n\
                                  WARC writer.\n"),
     "\n",
@@ -947,13 +950,15 @@ main (int argc, char **argv)
   /* Construct the arguments string. */
   int argstring_length = 1;
   for (i = 1; i < argc; i++)
-    argstring_length += strlen (argv[i]) + 1;
+    argstring_length += strlen (argv[i]) + 2 + 1;
   char *p = program_argstring = malloc (argstring_length * sizeof (char));
   for (i = 1; i < argc; i++)
   {
+    *p++ = '"';
     int arglen = strlen (argv[i]);
     memcpy (p, argv[i], arglen);
     p += arglen;
+    *p++ = '"';
     *p++ = ' ';
   }
   *p = '\0';
@@ -1230,6 +1235,10 @@ for details.\n\n"));
           fprintf (stderr,
                    _("Digests are disabled; WARC deduplication will "
                      "not find duplicate records.\n"));
+        }
+      if (opt.warc_keep_log)
+        {
+          opt.progress_type = "dot";
         }
     }
 

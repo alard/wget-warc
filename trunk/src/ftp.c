@@ -1610,7 +1610,7 @@ ftp_loop_internal (struct url *u, struct fileinfo *f, ccon *con, char **local_fi
       if (warc_enabled && (con->cmd & DO_RETR))
         {
           /* Create and store a WARC resource record for the retrieved file. */
-          bool warc_result = warc_write_resource_record (u->url, NULL, NULL, warc_ip, warc_tmp, -1);
+          bool warc_result = warc_write_resource_record (NULL, u->url, NULL, NULL, warc_ip, NULL, warc_tmp, -1);
           if (! warc_result)
           {
             return WARC_ERR;
