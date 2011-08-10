@@ -474,7 +474,7 @@ warc_start_new_file (bool meta)
   warc_current_wfile = bless (WFile, new_filename, opt.warc_maxsize, WARC_FILE_WRITER, compression, warc_tmpdir);
   if (warc_current_wfile == NULL)
     {
-      logprintf (LOG_NOTQUIET, _("Error opening WARC file.\n"));
+      logprintf (LOG_NOTQUIET, _("Error opening WARC file %s.\n"), quote (new_filename));
       return false;
     }
 
@@ -577,9 +577,18 @@ warc_load_cdx_dedup_file ()
     }
 
   /* If the file contains all three fields, read the complete file. */
-  if (field_num_original_url != -1
-      && field_num_checksum != -1
-      && field_num_record_id != -1)
+  if (field_num_original_url == -1
+      || field_num_checksum == -1
+      || field_num_record_id == -1)
+    {
+      if (field_num_original_url == -1)
+        logprintf (LOG_NOTQUIET, _("CDX file does not list original urls. (Missing column 'a'.)\n"));
+      if (field_num_checksum == -1)
+        logprintf (LOG_NOTQUIET, _("CDX file does not list checksums. (Missing column 'k'.)\n"));
+      if (field_num_record_id == -1)
+        logprintf (LOG_NOTQUIET, _("CDX file does not list record ids. (Missing column 'u'.)\n"));
+    }
+  else
     {
       /* Initialize the table. */
       warc_cdx_dedup_table = hash_table_new (1000, warc_hash_sha1_digest, warc_cmp_sha1_digest);
@@ -711,7 +720,9 @@ warc_init ()
         {
           if (! warc_load_cdx_dedup_file ())
             {
-              logprintf (LOG_NOTQUIET, _("Could not open CDX file for deduplication.\n"));
+              logprintf (LOG_NOTQUIET,
+                         _("Could not read CDX file %s for deduplication.\n"),
+                         quote (opt.warc_cdx_dedup_filename));
               exit(1);
             }
         }
