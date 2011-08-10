@@ -149,10 +149,10 @@ warc_setBlockDigest (void *record, unsigned char *sha1_digest)
 {
   if (sha1_digest != NULL)
     {
-      unsigned char sha1_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
-      base32_encode (sha1_digest, SHA1_DIGEST_SIZE, sha1_base32 + 5);
+      unsigned char sha1_base32[BASE32_LENGTH(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
+      base32_encode ((char *) sha1_digest, SHA1_DIGEST_SIZE, (char *) sha1_base32 + 5, BASE32_LENGTH(SHA1_DIGEST_SIZE) + 1);
       memcpy (sha1_base32, "sha1:", 5);
-      sha1_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 5] = '\0';
+      sha1_base32[BASE32_LENGTH(SHA1_DIGEST_SIZE) + 5] = '\0';
       return WRecord_setBlockDigest (record, sha1_base32, w_strlen (sha1_base32));
     }
   return true;
@@ -165,10 +165,10 @@ warc_setPayloadDigest (void *record, unsigned char *sha1_digest)
 {
   if (sha1_digest != NULL)
     {
-      unsigned char sha1_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
-      base32_encode (sha1_digest, SHA1_DIGEST_SIZE, sha1_base32 + 5);
+      unsigned char sha1_base32[BASE32_LENGTH(SHA1_DIGEST_SIZE) + 1 + 5]; // "sha1:" + digest + "\0"
+      base32_encode ((char *) sha1_digest, SHA1_DIGEST_SIZE, (char *) sha1_base32 + 5, BASE32_LENGTH(SHA1_DIGEST_SIZE) + 1);
       memcpy (sha1_base32, "sha1:", 5);
-      sha1_base32[BASE32_LEN(SHA1_DIGEST_SIZE) + 5] = '\0';
+      sha1_base32[BASE32_LENGTH(SHA1_DIGEST_SIZE) + 5] = '\0';
       return WRecord_setPayloadDigest (record, sha1_base32, w_strlen (sha1_base32));
     }
   return true;
@@ -623,11 +623,12 @@ warc_load_cdx_dedup_file ()
                   /* For some extra efficiency, we decode the base32 encoded
                      checksum value.  This should produce exactly SHA1_DIGEST_SIZE
                      bytes.  */
-                  char *checksum_v = alloca (UNBASE32_LEN (strlen (checksum)));
-                  size_t checksum_l = base32_decode ((unsigned char *) checksum, (unsigned char *) checksum_v);
+                  size_t checksum_l;
+                  char * checksum_v;
+                  base32_decode_alloc (checksum, strlen (checksum), &checksum_v, &checksum_l);
                   free (checksum);
 
-                  if (checksum_l == SHA1_DIGEST_SIZE)
+                  if (checksum_v != NULL && checksum_l == SHA1_DIGEST_SIZE)
                     {
                       /* This is a valid line with a valid checksum. */
                       struct warc_cdx_record * rec = malloc (sizeof (struct warc_cdx_record));
@@ -635,11 +636,13 @@ warc_load_cdx_dedup_file ()
                       rec->uuid = record_id;
                       memcpy (rec->digest, checksum_v, SHA1_DIGEST_SIZE);
                       hash_table_put (warc_cdx_dedup_table, rec->digest, rec);
+                      free (checksum_v);
                     }
                   else
                     {
                       free (original_url);
-                      free (checksum);
+                      if (checksum_v != NULL)
+                        free (checksum_v);
                       free (record_id);
                     }
                 }

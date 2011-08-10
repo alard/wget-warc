@@ -396,16 +396,11 @@ EXTRA_DIST = 	warc-tools/misc/statistic.sh \
 	warc-tools/app/ruby/warcdump.rb \
 	warc-tools/app/arcopen.c \
 	warc-tools/app/arc2warc.sh \
-	warc-tools/app/warcdump.c \
-  base32/Makefile \
-  base32/README \
-  base32/base32.c \
-  base32/base32.h \
-  base32/encoder.c
+	warc-tools/app/warcdump.c
 
 all-local:
-	cd warc-tools && $(MAKE) $(AM_MAKEFLAGS) release static && cd ../base32 && $(MAKE) $(AM_MAKEFLAGS)
+	cd warc-tools && $(MAKE) $(AM_MAKEFLAGS) release static
 
 clean-local:
-	cd warc-tools && $(MAKE) $(AM_MAKEFLAGS) clean && cd ../base32 && $(MAKE) $(AM_MAKEFLAGS) clean
+	cd warc-tools && $(MAKE) $(AM_MAKEFLAGS) clean
 
