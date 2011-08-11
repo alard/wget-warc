@@ -391,13 +391,11 @@ log_vprintf_internal (struct logvprintf_state *state, const char *fmt,
   FILE *fp = get_log_fp ();
   FILE *warcfp = get_warc_log_fp ();
 
-  if (!save_context_p)
+  if (!save_context_p && warcfp == NULL)
     {
       /* In the simple case just call vfprintf(), to avoid needless
          allocation and games with vsnprintf(). */
       vfprintf (fp, fmt, args);
-      if (warcfp != NULL)
-        vfprintf (warcfp, fmt, args);
       goto flush;
     }
 
@@ -443,7 +441,8 @@ log_vprintf_internal (struct logvprintf_state *state, const char *fmt,
     }
 
   /* Writing succeeded. */
-  saved_append (write_ptr);
+  if (save_context_p)
+    saved_append (write_ptr);
   FPUTS (write_ptr, fp);
   if (warcfp != NULL)
     FPUTS (write_ptr, warcfp);
