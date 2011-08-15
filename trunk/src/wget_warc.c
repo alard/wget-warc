@@ -1093,6 +1093,10 @@ warc_extract_files (char *filename)
     }
     
   logprintf (LOG_NOTQUIET, _("Extracting from WARC file %s.\n"), quote (filename));
+
+  /* Record redirects for postprocessing. */
+  struct hash_table *redirects;
+  redirects = make_string_hash_table (0);
   
   /* Read records. */
   void * wrecord;
@@ -1121,7 +1125,7 @@ warc_extract_files (char *filename)
               WRecord_getContent (wrecord);
 
               // fwrite (wenv.data, wenv.length, 1, stdout);
-              process_http_response (parsed_url, wenv.data, wenv.length);
+              process_http_response (parsed_url, wenv.data, wenv.length, redirects);
 
               free (wenv.data);
               wenv.length = 0;
@@ -1129,6 +1133,39 @@ warc_extract_files (char *filename)
           destroy (wrecord);
         }
     }
+
+  /* Process redirects. */
+  if (dl_url_file_map)
+    {
+      hash_table_iterator iter;
+      for (hash_table_iterate (redirects, &iter); hash_table_iter_next (&iter); )
+        {
+          /* Follow the redirect(s) to find the file name of the url. */
+          char * tgt_url = (char *)iter.value;
+          char * tgt_file = NULL;
+          int redirect_count = 0;
+
+          while (tgt_url != NULL && tgt_file == NULL && redirect_count <= opt.max_redirect)
+            {
+              /* Check if the target url of the redirect points to a file. */
+              tgt_file = (char *) hash_table_get (dl_url_file_map, tgt_url);
+
+              /* If not a file, check if the target url of the redirect is again a redirect. */
+              if (tgt_file == NULL)
+                tgt_url = (char *) hash_table_get (redirects, tgt_url);
+
+              redirect_count++;
+            }
+
+          /* If the redirect(s) point to a file, add this link to the conversion list. */
+          if (tgt_url != NULL)
+            {
+              register_redirection ((char *) iter.key, tgt_url);
+            }
+        }
+    }
+
+  hash_table_destroy (redirects);
 
   destroy (wfile);
 

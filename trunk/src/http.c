@@ -3955,7 +3955,8 @@ ensure_extension (struct http_stat *hs, const char *ext, int *dt)
 
 
 bool
-process_http_response (struct url * u, const char * data, size_t length)
+process_http_response (struct url * u, const char * data, size_t length,
+                       struct hash_table *redirects)
 {
   size_t head_len;
   const char * start_of_body;
@@ -3992,6 +3993,8 @@ process_http_response (struct url * u, const char * data, size_t length)
   statcode = resp_status (resp, &message);
 
   printf ("%d %s\n", statcode, message);
+
+  hs->newloc = resp_header_strdup (resp, "Location");
 
   hs->local_file = NULL;
 
@@ -4048,7 +4051,49 @@ process_http_response (struct url * u, const char * data, size_t length)
         }
     }
 
-  /* TODO redirection */
+  /* 20x responses are counted among successful by default.  */
+  if (H_20X (statcode))
+    *dt |= RETROKF;
+
+  /* Return if redirected.  */
+  if (H_REDIRECTED (statcode) || statcode == HTTP_STATUS_MULTIPLE_CHOICES)
+    {
+      /* RFC2068 says that in case of the 300 (multiple choices)
+         response, the server can output a preferred URL through
+         `Location' header; otherwise, the request should be treated
+         like GET.  So, if the location is set, it will be a
+         redirection; otherwise, just proceed normally.  */
+      if (statcode == HTTP_STATUS_MULTIPLE_CHOICES && !hs->newloc)
+        *dt |= RETROKF;
+      else
+        {
+          logprintf (LOG_VERBOSE,
+                     _("Location: %s%s\n"),
+                     hs->newloc ? escnonprint_uri (hs->newloc) : _("unspecified"),
+                     hs->newloc ? _(" [following]") : "");
+
+          /* Register the redirect for postprocessing. */
+          char *construced_newloc;
+          struct url *newloc_parsed;
+
+          /* The HTTP specs only allow absolute URLs to appear in
+             redirects, but a ton of boneheaded webservers and CGIs out
+             there break the rules and use relative URLs, and popular
+             browsers are lenient about this, so wget should be too. */
+          construced_newloc = uri_merge (u->url, hs->newloc);
+
+          newloc_parsed = url_parse (hs->newloc, NULL, NULL, true);
+          if (newloc_parsed)
+            {
+              hash_table_put(redirects, strdup (u->url), strdup (hs->newloc));
+              url_free (newloc_parsed);
+            }
+
+          xfree_null (type);
+          resp_free (resp);
+          return true;
+        }
+    }
 
   /* If content-type is not given, assume text/html.  This is because
      of the multitude of broken CGI's that "forget" to generate the
