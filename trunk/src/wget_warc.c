@@ -1132,9 +1132,6 @@ warc_extract_files (char *filename)
 
   destroy (wfile);
 
-  if (opt.convert_links && !opt.delete_after)
-    convert_all_links ();
-
   return true;
 }
 
