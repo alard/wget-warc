@@ -3,6 +3,9 @@
 
 #include "wget.h"
 #include "hash.h"
+#include "url.h"
+#include "http.h"
+#include "convert.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1049,5 +1052,89 @@ warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str,
   /* destroy has also closed body. */
 
   return result;
+}
+
+
+struct warc_extract_env
+  {
+    char * data;
+    size_t length;
+  };
+
+static warc_bool_t
+warc_extract_file_callback (void * env, const char* buff, const warc_u32_t size)
+{
+  struct warc_extract_env * wenv;
+  wenv = (struct warc_extract_env *) (env);
+
+  wenv->data = realloc (wenv->data, wenv->length + size);
+  memcpy (wenv->data + wenv->length, buff, size);
+
+  wenv->length += size;
+  return true;
+}
+
+bool
+warc_extract_files (char *filename)
+{
+  /* Find the temporary directory. */
+  char tmpdir_filename[100];
+  if (path_search (tmpdir_filename, 100, opt.warc_tempdir, "wget", true) == -1)
+    return false;
+  char *warc_tmpdir = dirname (tmpdir_filename);
+
+  /* Open the WARC file for reading. */
+  void * wfile;
+  wfile = bless (WFile, filename, 0, WARC_FILE_READER, WARC_FILE_DETECT_COMPRESSION, warc_tmpdir);
+  if (wfile == NULL)
+    {
+      logprintf (LOG_NOTQUIET, _("Error opening WARC file %s.\n"), quote (filename));
+      return false;
+    }
+    
+  logprintf (LOG_NOTQUIET, _("Extracting from WARC file %s.\n"), quote (filename));
+  
+  /* Read records. */
+  void * wrecord;
+  while (WFile_hasMoreRecords (wfile))
+    {
+      wrecord = WFile_nextRecord (wfile);
+
+      if (wrecord == NULL)
+        {
+          logprintf (LOG_NOTQUIET, _("Error reading WARC record from file %s.\n"), quote (filename));
+        }
+      else
+        {
+          if (WRecord_getRecordType (wrecord) == WARC_RESPONSE_RECORD)
+            {
+              struct warc_extract_env wenv;
+              wenv.data = malloc (0);
+              wenv.length = 0;
+
+              char *url = (char *) WRecord_getTargetUri (wrecord);
+              printf ("url %s\n", url);
+
+              struct url *parsed_url = url_parse (url, NULL, NULL, 0);
+
+              WFile_register (wfile, wrecord, warc_extract_file_callback, &wenv);
+              WRecord_getContent (wrecord);
+
+              // fwrite (wenv.data, wenv.length, 1, stdout);
+              process_http_response (parsed_url, wenv.data, wenv.length);
+
+              free (wenv.data);
+              wenv.length = 0;
+            }
+          destroy (wrecord);
+        }
+    }
+
+  destroy (wfile);
+
+  if (opt.convert_links && !opt.delete_after)
+    convert_all_links ();
+
+  return true;
 }
 

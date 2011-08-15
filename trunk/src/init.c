@@ -268,6 +268,7 @@ static const struct {
   { "warccompression",  &opt.warc_compression_enabled, cmd_boolean },
   { "warcdigests",      &opt.warc_digests_enabled, cmd_boolean },
   { "warcfile",         &opt.warc_filename,     cmd_file },
+  { "warcinputfile",    &opt.warc_input_filename,     cmd_file },
   { "warcheader",       NULL,                   cmd_spec_warc_header },
   { "warckeeplog",      &opt.warc_keep_log,     cmd_boolean },
   { "warcmaxsize",      &opt.warc_maxsize,      cmd_bytes },

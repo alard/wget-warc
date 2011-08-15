@@ -3954,6 +3954,173 @@ ensure_extension (struct http_stat *hs, const char *ext, int *dt)
 }
 
 
+bool
+process_http_response (struct url * u, const char * data, size_t length)
+{
+  size_t head_len;
+  const char * start_of_body;
+  char * head;
+
+  struct http_stat hs_data;
+  int dt_data;
+  struct http_stat *hs = &hs_data;
+  int * dt = &dt_data;
+
+  struct response *resp;
+  char hdrval[256];
+  char *type;
+  char * message;
+  int statcode;
+  FILE *fp;
+
+  start_of_body = response_head_terminator (data, data, length);
+  if (start_of_body == NULL || start_of_body == data)
+    {
+      return false;
+    }
+
+  head_len = start_of_body - data;
+  printf ("headers %ld\n", head_len);
+
+  head = alloca (head_len + 1);
+  memcpy (head, data, head_len);
+  head[head_len] = '\0';
+
+  resp = resp_new (head);
+
+  message = NULL;
+  statcode = resp_status (resp, &message);
+
+  printf ("%d %s\n", statcode, message);
+
+  hs->local_file = NULL;
+
+  /* Determine the local filename. */
+  {
+    char *local_file = NULL;
+
+    /* Honor Content-Disposition whether possible. */
+    if (!opt.content_disposition
+        || !resp_header_copy (resp, "Content-Disposition",
+                              hdrval, sizeof (hdrval))
+        || !parse_content_disposition (hdrval, &local_file))
+      {
+        /* The Content-Disposition header is missing or broken.
+         * Choose unique file name according to given URL. */
+        hs->local_file = url_file_name (u, NULL);
+      }
+    else
+      {
+        DEBUGP (("Parsed filename from Content-Disposition: %s\n",
+                local_file));
+        hs->local_file = url_file_name (u, local_file);
+      }
+  }
+
+  if (file_exists_p (hs->local_file))
+    {
+      if (opt.noclobber && !opt.output_document)
+        {
+          /* If opt.noclobber is turned on and file already exists, do not
+             retrieve the file. But if the output_document was given, then this
+             test was already done and the file didn't exist. Hence the !opt.output_document */
+          resp_free (resp);
+          return false;
+        }
+      else if (!ALLOW_CLOBBER)
+        {
+          char *unique = unique_name (hs->local_file, true);
+          if (unique != hs->local_file)
+            xfree (hs->local_file);
+          hs->local_file = unique;
+        }
+    }
+
+  type = resp_header_strdup (resp, "Content-Type");
+  if (type)
+    {
+      char *tmp = strchr (type, ';');
+      if (tmp)
+        {
+          while (tmp > type && c_isspace (tmp[-1]))
+            --tmp;
+          *tmp = '\0';
+        }
+    }
+
+  /* TODO redirection */
+
+  /* If content-type is not given, assume text/html.  This is because
+     of the multitude of broken CGI's that "forget" to generate the
+     content-type.  */
+  if (!type ||
+        0 == strncasecmp (type, TEXTHTML_S, strlen (TEXTHTML_S)) ||
+        0 == strncasecmp (type, TEXTXHTML_S, strlen (TEXTXHTML_S)))
+    *dt |= TEXTHTML;
+  else
+    *dt &= ~TEXTHTML;
+
+  if (type &&
+      0 == strncasecmp (type, TEXTCSS_S, strlen (TEXTCSS_S)))
+    *dt |= TEXTCSS;
+  else
+    *dt &= ~TEXTCSS;
+
+  if (opt.adjust_extension)
+    {
+      if (*dt & TEXTHTML)
+        /* -E / --adjust-extension / adjust_extension = on was specified,
+           and this is a text/html file.  If some case-insensitive
+           variation on ".htm[l]" isn't already the file's suffix,
+           tack on ".html". */
+        {
+          ensure_extension (hs, ".html", dt);
+        }
+      else if (*dt & TEXTCSS)
+        {
+          ensure_extension (hs, ".css", dt);
+        }
+    }
+
+
+  mkalldirs (hs->local_file);
+  fp = fopen (hs->local_file, "wb");
+  fwrite (start_of_body, length - head_len, 1, fp);
+  fclose (fp);
+
+  /* Print fetch message, if opt.verbose.  */
+  if (opt.verbose)
+    {
+      logprintf (LOG_NOTQUIET, _("Saving to: %s\n"),
+                 HYPHENP (hs->local_file) ? quote ("STDOUT") : quote (hs->local_file));
+    }
+
+  xfree_null (type);
+  resp_free (resp);
+
+  if (hs->local_file && u)
+    {
+      register_download (u->url, hs->local_file);
+      printf ("reg u %s l %s\n", u->url, hs->local_file);
+
+      /*
+      if (!opt.spider && redirection_count && 0 != strcmp (origurl, u->url))
+        register_redirection (origurl, u->url);
+      */
+
+      if (*dt & TEXTHTML)
+        register_html (u->url, hs->local_file);
+      if (*dt & TEXTHTML)
+        printf ("reg html u %s l %s\n", u->url, hs->local_file);
+
+      if (*dt & TEXTCSS)
+        register_css (u->url, hs->local_file);
+    }
+
+  return true;
+}
+
+
 #ifdef TESTING
 
 const char *

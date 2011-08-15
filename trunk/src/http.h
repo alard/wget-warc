@@ -45,5 +45,6 @@ typedef struct {
 } param_token;
 bool extract_param (const char **, param_token *, param_token *, char);
 
+bool process_http_response (struct url *, const char *, size_t);
 
 #endif /* HTTP_H */

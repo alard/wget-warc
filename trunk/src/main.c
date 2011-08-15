@@ -292,6 +292,7 @@ static struct cmdline_option option_data[] =
     { "warc-dedup", 0, OPT_VALUE, "warccdxdedup", -1 },
     { "warc-digests", 0, OPT_BOOLEAN, "warcdigests", -1 },
     { "warc-file", 0, OPT_VALUE, "warcfile", -1 },
+    { "warc-extract", 0, OPT_VALUE, "warcinputfile", -1 },
     { "warc-header", 0, OPT_VALUE, "warcheader", -1 },
     { "warc-keep-log", 0, OPT_BOOLEAN, "warckeeplog", -1 },
     { "warc-max-size", 0, OPT_VALUE, "warcmaxsize", -1 },
@@ -678,6 +679,8 @@ WARC options:\n"),
     N_("\
        --warc-tempdir=DIRECTORY  location for temporary files created by the\n\
                                  WARC writer.\n"),
+    N_("\
+       --warc-extract=FILENAME   extract the documents from the WARC file.\n"),
     "\n",
 
     N_("\
@@ -1242,6 +1245,11 @@ for details.\n\n"));
         }
     }
 
+  if (opt.warc_input_filename != 0)
+    {
+      opt.dirstruct = 1;
+    }
+
   if (opt.ask_passwd && opt.passwd)
     {
       fprintf (stderr,
@@ -1250,7 +1258,7 @@ for details.\n\n"));
       exit (1);
     }
 
-  if (!nurl && !opt.input_filename)
+  if (!nurl && !opt.input_filename && !opt.warc_input_filename)
     {
       /* No URL specified.  */
       fprintf (stderr, _("%s: missing URL\n"), exec_name);
@@ -1481,6 +1489,13 @@ outputting to a regular file.\n"));
       if (!count)
         logprintf (LOG_NOTQUIET, _("No URLs found in %s.\n"),
                    opt.input_filename);
+    }
+
+  /* Or should we extract a WARC file?  */
+  if (opt.warc_input_filename)
+    {
+      bool result;
+      result = warc_extract_files (opt.warc_input_filename);
     }
 
   /* Print broken links. */
