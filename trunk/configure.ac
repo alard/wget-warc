@@ -62,7 +62,8 @@ dnl Process features.
 dnl
 
 AC_ARG_WITH(ssl,
-[[  --without-ssl           disable SSL autodetection]])
+[[  --without-ssl           disable SSL autodetection
+  --with-ssl={gnutls,openssl} specify the SSL backend.  GNU TLS is the default.]])
 
 AC_ARG_ENABLE(opie,
 [  --disable-opie          disable support for opie or s/key FTP login],
@@ -196,7 +197,7 @@ AC_FUNC_MMAP
 AC_FUNC_FSEEKO
 AC_CHECK_FUNCS(strptime timegm vsnprintf vasprintf drand48)
 AC_CHECK_FUNCS(strtoll usleep ftello sigblock sigsetjmp memrchr wcwidth mbtowc)
-AC_CHECK_FUNCS(sleep symlink)
+AC_CHECK_FUNCS(sleep symlink utime)
 
 if test x"$ENABLE_OPIE" = xyes; then
   AC_LIBOBJ([ftp-opie])
@@ -245,6 +246,7 @@ AS_IF([test x"$with_ssl" = xopenssl], [
       AC_CHECK_LIB(dl, shl_load)
     ])
 
+    ssl_found=no
     case $host_os in
       *mingw32* )
         dnl prefer link to openssl dlls if possible. if not then fallback on static libs. if not then error
@@ -252,35 +254,46 @@ AS_IF([test x"$with_ssl" = xopenssl], [
         AC_CHECK_LIB(eay32, EVP_MD_CTX_init)
         if test x"$ac_cv_lib_eay32_EVP_MD_CTX_init" != xno
         then
-          AC_CHECK_LIB(ssl32, SSL_connect,,
-                    AC_MSG_ERROR([openssl not found: shared lib eay32 found but ssl32 not found]))
-          AC_MSG_NOTICE([Enabling support for SSL via OpenSSL (shared)])
+          AC_CHECK_LIB(ssl32, SSL_connect, [
+            ssl_found=yes
+            AC_MSG_NOTICE([Enabling support for SSL via OpenSSL (shared)])
+          ],
+          AC_MSG_ERROR([openssl not found: shared lib eay32 found but ssl32 not found]))
           
         else
           LIBS+=' -lgdi32'
           dnl fallback and test static libs
-          
-          AC_CHECK_LIB(crypto, EVP_MD_CTX_init,,,)
-          if test x"$ac_cv_lib_crypto_EVP_MD_CTX_init" != xno
-          then
-            AC_CHECK_LIB(ssl, SSL_connect,, AC_MSG_ERROR([openssl not found]))
-            AC_MSG_NOTICE([Enabling support for SSL via OpenSSL])
-          else
-            AC_MSG_ERROR([openssl not found: shared (eay32/ssl32) or static (crypto/ssl) libs needed])
-          fi
-          
         fi
         dnl add zdll lib as dep for above tests?
       ;;
-      *)
-
-        AC_CHECK_LIB(crypto, EVP_MD_CTX_init)
-        AC_CHECK_LIB(ssl, ERR_func_error_string,,
-                  AC_MSG_ERROR([openssl development libraries not found]))
-        AC_MSG_NOTICE([Enabling support for SSL via OpenSSL (static)])
-      ;;
     esac
+
+AS_IF([test x$ssl_found != xyes],
+[
+  dnl Now actually check for -lssl if it wasn't already found
+    AC_LIB_HAVE_LINKFLAGS([ssl], [crypto z], [
+  #include <openssl/ssl.h>
+  #include <openssl/x509.h>
+  #include <openssl/err.h>
+  #include <openssl/rand.h>
+  #include <openssl/des.h>
+  #include <openssl/md4.h>
+  #include <openssl/md5.h>
+    ], [SSL_library_init ()])
+    if test x"$LIBSSL" != x
+    then
+      AC_MSG_NOTICE([compiling in support for SSL via OpenSSL])
+      AC_LIBOBJ([openssl])
+      LIBS="$LIBSSL $LIBS"
+    elif test x"$with_ssl" != x
+    then
+      AC_MSG_ERROR([--with-ssl=openssl was given, but SSL is not available.])
+    fi
+
     AC_LIBOBJ([openssl])
+
+])
+
 ], [
   # --with-ssl is not gnutls: check if it's no
   AS_IF([test x"$with_ssl" != xno], [
@@ -289,18 +302,23 @@ AS_IF([test x"$with_ssl" = xopenssl], [
     AC_CHECK_LIB(z, compress)
     AC_CHECK_LIB(gpg-error, gpg_err_init)
     AC_CHECK_LIB(gcrypt, gcry_control)
-    AC_CHECK_LIB(gnutls, main)
 
-    if test x"$ac_cv_lib_gnutls_main" != xno
-    then
-      AC_MSG_NOTICE([compiling in support for SSL via GnuTLS])
-      AC_LIBOBJ([gnutls])
-    else
-      AC_MSG_ERROR([--with-ssl was given, but GNUTLS is not available.])
-    fi
+  dnl Now actually check for -lssl
+  AC_LIB_HAVE_LINKFLAGS([gnutls], [], [
+#include <gnutls/gnutls.h>
+  ], [gnutls_global_init()])
+  if test x"$LIBGNUTLS" != x
+  then
+    AC_MSG_NOTICE([compiling in support for SSL via GnuTLS])
+    AC_LIBOBJ([gnutls])
+    LIBS="$LIBGNUTLS $LIBS"
+  else
+    AC_MSG_ERROR([--with-ssl was given, but GNUTLS is not available.])
+  fi
+
+  AC_CHECK_FUNCS(gnutls_priority_set_direct)
   ]) # endif: --with-ssl == no?
 ]) # endif: --with-ssl == openssl?
-
 
 dnl Enable NTLM if requested and if SSL is available.
 if test x"$LIBSSL" != x

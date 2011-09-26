@@ -248,6 +248,7 @@ static const struct {
   { "secureprotocol",   &opt.secure_protocol,   cmd_spec_secure_protocol },
 #endif
   { "serverresponse",   &opt.server_response,   cmd_boolean },
+  { "showalldnsentries", &opt.show_all_dns_entries, cmd_boolean },
   { "spanhosts",        &opt.spanhost,          cmd_boolean },
   { "spider",           &opt.spider,            cmd_boolean },
   { "strictcomments",   &opt.strict_comments,   cmd_boolean },
@@ -369,6 +370,7 @@ defaults (void)
   opt.encoding_remote = NULL;
 
   opt.useservertimestamps = true;
+  opt.show_all_dns_entries = false;
 
   opt.warc_maxsize = 0; /* 1024 * 1024 * 1024; */
   opt.warc_compression_enabled = true;
@@ -386,7 +388,6 @@ home_dir (void)
 {
   static char *buf = NULL;
   static char *home, *ret;
-  int len;
 
   if (!home)
     {
@@ -394,6 +395,8 @@ home_dir (void)
       if (!home)
         {
 #if defined(MSDOS)
+          int len;
+
           /* Under MSDOS, if $HOME isn't defined, use the directory where
              `wget.exe' resides.  */
           const char *_w32_get_argv0 (void); /* in libwatt.a/pcconfig.c */

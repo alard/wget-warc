@@ -1649,8 +1649,14 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
 
   request_set_header (req, "Referer", (char *) hs->referer, rel_none);
   if (*dt & SEND_NOCACHE)
-    request_set_header (req, "Pragma", "no-cache", rel_none);
-  if (hs->restval && !opt.timestamping)
+    {
+      /* Cache-Control MUST be obeyed by all HTTP/1.1 caching mechanisms...  */
+      request_set_header (req, "Cache-Control", "no-cache, must-revalidate", rel_none);
+
+      /* ... but some HTTP/1.0 caches doesn't implement Cache-Control.  */
+      request_set_header (req, "Pragma", "no-cache", rel_none);
+    }
+  if (hs->restval)
     request_set_header (req, "Range",
                         aprintf ("bytes=%s-",
                                  number_to_static_string (hs->restval)),
@@ -2071,12 +2077,14 @@ read_header:
                                  _("Malformed status line")));
       CLOSE_INVALIDATE (sock);
       request_free (req);
+      xfree (head);
       return HERR;
     }
 
   if (H_10X (statcode))
     {
       DEBUGP (("Ignoring response\n"));
+      xfree (head);
       goto read_header;
     }
 
@@ -2125,8 +2133,9 @@ read_header:
         }
     }
 
-  resp_header_copy (resp, "Transfer-Encoding", hdrval, sizeof (hdrval));
-  if (0 == strcasecmp (hdrval, "chunked"))
+  chunked_transfer_encoding = false;
+  if (resp_header_copy (resp, "Transfer-Encoding", hdrval, sizeof (hdrval))
+      && 0 == strcasecmp (hdrval, "chunked"))
     chunked_transfer_encoding = true;
 
   /* Handle (possibly multiple instances of) the Set-Cookie header. */

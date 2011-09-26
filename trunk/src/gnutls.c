@@ -45,7 +45,10 @@ as that of the covered work.  */
 #include "utils.h"
 #include "connect.h"
 #include "url.h"
+#include "ptimer.h"
 #include "ssl.h"
+
+#include <sys/fcntl.h>
 
 #ifdef WIN32
 # include "w32sock.h"
@@ -57,7 +60,6 @@ as that of the covered work.  */
    preprocessor macro.  */
 
 static gnutls_certificate_credentials credentials;
-
 bool
 ssl_init ()
 {
@@ -122,10 +124,94 @@ struct wgnutls_transport_context
 # define MIN(i, j) ((i) <= (j) ? (i) : (j))
 #endif
 
+
+static int
+wgnutls_read_timeout (int fd, char *buf, int bufsize, void *arg, double timeout)
+{
+#ifdef F_GETFL
+  int flags = 0;
+#endif
+  int ret = 0;
+  struct ptimer *timer;
+  struct wgnutls_transport_context *ctx = arg;
+  int timed_out = 0;
+
+  if (timeout)
+    {
+#ifdef F_GETFL
+      flags = fcntl (fd, F_GETFL, 0);
+      if (flags < 0)
+        return flags;
+#endif
+      timer = ptimer_new ();
+      if (timer == 0)
+        return -1;
+    }
+
+  do
+    {
+      double next_timeout = timeout - ptimer_measure (timer);
+      if (timeout && next_timeout < 0)
+        break;
+
+      ret = GNUTLS_E_AGAIN;
+      if (timeout == 0 || gnutls_record_check_pending (ctx->session)
+          || select_fd (fd, next_timeout, WAIT_FOR_READ))
+        {
+          if (timeout)
+            {
+#ifdef F_GETFL
+              ret = fcntl (fd, F_SETFL, flags | O_NONBLOCK);
+              if (ret < 0)
+                return ret;
+#else
+              /* XXX: Assume it was blocking before.  */
+              const int one = 1;
+              ret = ioctl (fd, FIONBIO, &one);
+              if (ret < 0)
+                return ret;
+#endif
+            }
+
+          ret = gnutls_record_recv (ctx->session, buf, bufsize);
+
+          if (timeout)
+            {
+              int status;
+#ifdef F_GETFL
+              status = fcntl (fd, F_SETFL, flags);
+              if (status < 0)
+                return status;
+#else
+              const int zero = 0;
+              status = ioctl (fd, FIONBIO, &zero);
+              if (status < 0)
+                return status;
+#endif
+            }
+        }
+
+      timed_out = timeout && ptimer_measure (timer) >= timeout;
+    }
+  while (ret == GNUTLS_E_INTERRUPTED || (ret == GNUTLS_E_AGAIN && !timed_out));
+
+  if (timeout)
+    ptimer_destroy (timer);
+
+  if (timeout && timed_out && ret == GNUTLS_E_AGAIN)
+    errno = ETIMEDOUT;
+
+  return ret;
+}
+
 static int
 wgnutls_read (int fd, char *buf, int bufsize, void *arg)
 {
+#ifdef F_GETFL
+  int flags = 0;
+#endif
   int ret = 0;
+  struct ptimer *timer;
   struct wgnutls_transport_context *ctx = arg;
 
   if (ctx->peeklen)
@@ -140,10 +226,7 @@ wgnutls_read (int fd, char *buf, int bufsize, void *arg)
       return copysize;
     }
 
-  do
-    ret = gnutls_record_recv (ctx->session, buf, bufsize);
-  while (ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN);
-
+  ret = wgnutls_read_timeout (fd, buf, bufsize, arg, opt.read_timeout);
   if (ret < 0)
     ctx->last_error = ret;
 
@@ -189,9 +272,8 @@ wgnutls_peek (int fd, char *buf, int bufsize, void *arg)
           && select_fd (fd, 0.0, WAIT_FOR_READ) <= 0)
         read = 0;
       else
-        read = gnutls_record_recv (ctx->session, buf + offset,
-                                   bufsize - offset);
-        
+        read = wgnutls_read_timeout (fd, buf + offset, bufsize - offset,
+                                     ctx, opt.read_timeout);
       if (read < 0)
         {
           if (offset)
@@ -240,16 +322,11 @@ static struct transport_implementation wgnutls_transport =
 bool
 ssl_connect_wget (int fd)
 {
-  static const int cert_type_priority[] = {
-    GNUTLS_CRT_X509, GNUTLS_CRT_OPENPGP, 0
-  };
   struct wgnutls_transport_context *ctx;
   gnutls_session session;
   int err;
-  int allowed_protocols[4] = {0, 0, 0, 0};
   gnutls_init (&session, GNUTLS_CLIENT);
   gnutls_set_default_priority (session);
-  gnutls_certificate_type_set_priority (session, cert_type_priority);
   gnutls_credentials_set (session, GNUTLS_CRD_CERTIFICATE, credentials);
 #ifndef FD_TO_SOCKET
 # define FD_TO_SOCKET(X) (X)
@@ -257,6 +334,23 @@ ssl_connect_wget (int fd)
   gnutls_transport_set_ptr (session, (gnutls_transport_ptr) FD_TO_SOCKET (fd));
 
   err = 0;
+#if HAVE_GNUTLS_PRIORITY_SET_DIRECT
+  switch (opt.secure_protocol)
+    {
+    case secure_protocol_auto:
+      break;
+    case secure_protocol_sslv2:
+    case secure_protocol_sslv3:
+      err = gnutls_priority_set_direct (session, "NORMAL:-VERS-TLS-ALL", NULL);
+      break;
+    case secure_protocol_tlsv1:
+      err = gnutls_priority_set_direct (session, "NORMAL:-VERS-SSL3.0", NULL);
+      break;
+    default:
+      abort ();
+    }
+#else
+  int allowed_protocols[4] = {0, 0, 0, 0};
   switch (opt.secure_protocol)
     {
     case secure_protocol_auto:
@@ -266,15 +360,19 @@ ssl_connect_wget (int fd)
       allowed_protocols[0] = GNUTLS_SSL3;
       err = gnutls_protocol_set_priority (session, allowed_protocols);
       break;
+
     case secure_protocol_tlsv1:
       allowed_protocols[0] = GNUTLS_TLS1_0;
       allowed_protocols[1] = GNUTLS_TLS1_1;
       allowed_protocols[2] = GNUTLS_TLS1_2;
       err = gnutls_protocol_set_priority (session, allowed_protocols);
       break;
+
     default:
       abort ();
     }
+#endif
+
   if (err < 0)
     {
       logprintf (LOG_NOTQUIET, "GnuTLS: %s\n", gnutls_strerror (err));

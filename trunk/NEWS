@@ -6,9 +6,24 @@ See the end for copying conditions.
 
 Please send GNU Wget bug reports to <bug-wget@gnu.org>.
 
-* Changes in Wget X.Y.Z
+* Changes in Wget 1.13.4
+
+** Now --version and --help work again.
+
+** Fix a build error on solaris 10 sparc.
+
+** Now --timestamping and --continue work well together.
+
+** Return a network failure when FTP downloads fail and --timestamping
+   is specified.
+
+
+* Changes in Wget 1.13.3
 
 ** Support HTTP/1.1
+
+** Now by default the GNU TLS library for secure connections, instead of
+   OpenSSL.
 
 ** Fix some portability issues.
 
@@ -62,6 +77,12 @@ Please send GNU Wget bug reports to <bug-wget@gnu.org>.
 
 ** Now --no-parent doesn't fetch undesired files if HTTP and HTTPS are used
    by the same host on different pages.
+
+** Do not attempt to remove the file if it is not in the accept rules but
+   it is the output destination file.
+
+** Introduce `show_all_dns_entries' to print all IP addresses corresponding to
+   a DNS name when it is resolved.
 
 * Changes in Wget 1.12
 
