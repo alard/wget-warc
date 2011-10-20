@@ -40,6 +40,8 @@ static FILE *warc_current_file;
 /* The gzip stream for the current WARC file
    (or NULL, if WARC or gzip is disabled). */
 static gzFile *warc_current_gzfile;
+static size_t warc_current_gzfile_offset;
+static size_t warc_current_gzfile_uncompressed_size;
 
 /* The current CDX file (or NULL, if CDX is disabled). */
 static FILE *warc_current_cdx_file;
@@ -90,11 +92,8 @@ warc_write_buffer (const char *buffer, size_t size)
 {
   if (warc_current_gzfile)
     {
-      size_t r = gzwrite (warc_current_gzfile, buffer, size);
-      int err;
-      char *msg = gzerror (warc_current_gzfile, &err);
-      printf ("gzwrite %ld %d %s\n", r, err, msg);
-      return r;
+      warc_current_gzfile_uncompressed_size += size;
+      return gzwrite (warc_current_gzfile, buffer, size);
     }
   else
     return fwrite (buffer, 1, size, warc_current_file);
@@ -107,13 +106,25 @@ warc_write_string (const char *str)
   return n == warc_write_buffer (str, n);
 }
 
+
+#define EXTRA_GZIP_HEADER_SIZE 12
+#define GZIP_STATIC_HEADER_SIZE  10
+#define FLG_FEXTRA          0x04
+#define OFF_FLG             3
+
 static bool
 warc_write_start_record ()
 {
   /* Start a GZIP stream, if required. */
   if (opt.warc_compression_enabled)
     {
-      warc_current_gzfile = gzdopen (dup (fileno (warc_current_file)), "ab9");
+      warc_current_gzfile_offset = ftell (warc_current_file);
+      fprintf (warc_current_file, "XXXXXXXXXXXX");
+      fflush (warc_current_file);
+
+      warc_current_gzfile = gzdopen (dup (fileno (warc_current_file)), "wb+9");
+      warc_current_gzfile_uncompressed_size = 0;
+
       if (warc_current_gzfile == NULL)
         {
           logprintf (LOG_NOTQUIET, _("Error opening GZIP stream to WARC file.\n"));
@@ -163,7 +174,50 @@ warc_write_block_from_file (FILE *data_in)
     {
       if (gzclose (warc_current_gzfile) != Z_OK)
         return false;
-      printf("gzclose\n");
+      fflush (warc_current_file);
+      fseek (warc_current_file, 0, SEEK_END);
+
+      size_t current_offset = ftell (warc_current_file);
+      size_t uncompressed_size = current_offset - warc_current_gzfile_offset;
+      size_t compressed_size = warc_current_gzfile_uncompressed_size;
+
+      /* Go back to the header. */
+      fseek (warc_current_file, warc_current_gzfile_offset + EXTRA_GZIP_HEADER_SIZE, SEEK_SET);
+
+      char static_header[GZIP_STATIC_HEADER_SIZE];
+      size_t result = fread (static_header, 1, GZIP_STATIC_HEADER_SIZE, warc_current_file);
+      if (result != GZIP_STATIC_HEADER_SIZE)
+        return false;
+
+      static_header[OFF_FLG] = static_header[OFF_FLG] | FLG_FEXTRA;
+
+      fseek (warc_current_file, warc_current_gzfile_offset, SEEK_SET);
+      fwrite (static_header, 1, GZIP_STATIC_HEADER_SIZE, warc_current_file);
+      fseek (warc_current_file, warc_current_gzfile_offset + GZIP_STATIC_HEADER_SIZE, SEEK_SET);
+
+      /* Extra GZIP header. */
+      char extra_header[EXTRA_GZIP_HEADER_SIZE];
+      /* XLEN, the length of the extra header fields.  */
+      extra_header[0]  = (GZIP_STATIC_HEADER_SIZE & 255);
+      extra_header[1]  = (GZIP_STATIC_HEADER_SIZE >> 8) & 255;
+      /* The extra header field identifier for the WARC skip length. */
+      extra_header[2]  = 's';
+      extra_header[3]  = 'l';
+      /* The size of the uncompressed record.  */
+      extra_header[4]  = (uncompressed_size & 255);
+      extra_header[5]  = (uncompressed_size >> 8) & 255;
+      extra_header[6]  = (uncompressed_size >> 16) & 255;
+      extra_header[7]  = (uncompressed_size >> 24) & 255;
+      /* The size of the compressed record.  */
+      extra_header[8]  = (compressed_size & 255);
+      extra_header[9]  = (compressed_size >> 8) & 255;
+      extra_header[10] = (compressed_size >> 16) & 255;
+      extra_header[11] = (compressed_size >> 24) & 255;
+
+      fwrite (extra_header, 1, EXTRA_GZIP_HEADER_SIZE, warc_current_file);
+
+      fflush (warc_current_file);
+      fseek (warc_current_file, current_offset, SEEK_SET);
     }
   fflush (warc_current_file);
 
@@ -474,7 +528,7 @@ warc_start_new_file (bool meta)
   logprintf (LOG_VERBOSE, _("Opening WARC file %s.\n\n"), quote (new_filename));
 
   /* Open the WARC file. */
-  warc_current_file = fopen (new_filename, "wb");
+  warc_current_file = fopen (new_filename, "wb+");
   if (warc_current_file == NULL)
     {
       logprintf (LOG_NOTQUIET, _("Error opening WARC file %s.\n"), quote (new_filename));
@@ -1030,7 +1084,16 @@ warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str,
     content_type = "application/octet-stream";
   warc_write_header ("Content-Type", content_type);
   warc_write_header ("WARC-Target-URI", url);
-  warc_write_header ("WARC-Date", timestamp_str);
+  if (timestamp_str == NULL)
+    {
+      char timestamp[21];
+      warc_timestamp (timestamp);
+      warc_write_header ("WARC-Date", timestamp);
+    }
+  else
+    {
+      warc_write_header ("WARC-Date", timestamp_str);
+    }
   warc_write_header ("WARC-Record-ID", resource_uuid);
   warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
   warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
