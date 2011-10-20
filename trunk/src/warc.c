@@ -16,6 +16,7 @@
 #include <sha1.h>
 #include <base32.h>
 #include <unistd.h>
+#include <zlib.h>
 
 #include "warc.h"
 
@@ -34,7 +35,11 @@ static FILE *warc_log_fp;
 static FILE *warc_manifest_fp;
 
 /* The current WARC file (or NULL, if WARC is disabled). */
-FILE *warc_current_file;
+static FILE *warc_current_file;
+
+/* The gzip stream for the current WARC file
+   (or NULL, if WARC or gzip is disabled). */
+static gzFile *warc_current_gzfile;
 
 /* The current CDX file (or NULL, if CDX is disabled). */
 static FILE *warc_current_cdx_file;
@@ -48,7 +53,7 @@ static char *warc_current_filename;
 /* The serial number of the current WARC file.  This number is
    incremented each time a new file is opened and is used in the
    WARC file's filename. */
-static int  warc_current_file_number;
+static int warc_current_file_number;
 
 /* The table of CDX records, if deduplication is enabled. */
 struct hash_table * warc_cdx_dedup_table;
@@ -83,7 +88,16 @@ warc_cmp_sha1_digest (const void *digest1, const void *digest2)
 static size_t
 warc_write_buffer (const char *buffer, size_t size)
 {
-  return fwrite (buffer, 1, size, warc_current_file);
+  if (warc_current_gzfile)
+    {
+      size_t r = gzwrite (warc_current_gzfile, buffer, size);
+      int err;
+      char *msg = gzerror (warc_current_gzfile, &err);
+      printf ("gzwrite %ld %d %s\n", r, err, msg);
+      return r;
+    }
+  else
+    return fwrite (buffer, 1, size, warc_current_file);
 }
 
 static bool
@@ -94,8 +108,19 @@ warc_write_string (const char *str)
 }
 
 static bool
-warc_write_version ()
+warc_write_start_record ()
 {
+  /* Start a GZIP stream, if required. */
+  if (opt.warc_compression_enabled)
+    {
+      warc_current_gzfile = gzdopen (dup (fileno (warc_current_file)), "ab9");
+      if (warc_current_gzfile == NULL)
+        {
+          logprintf (LOG_NOTQUIET, _("Error opening GZIP stream to WARC file.\n"));
+          return false;
+        }
+    }
+
   return warc_write_string ("WARC/1.0\r\n");
 }
 
@@ -132,6 +157,15 @@ warc_write_block_from_file (FILE *data_in)
         return false;
     }
   bool success = warc_write_buffer ("\r\n\r\n", 4);
+
+  /* We start a new gzip stream for each record.  */
+  if (warc_current_gzfile)
+    {
+      if (gzclose (warc_current_gzfile) != Z_OK)
+        return false;
+      printf("gzclose\n");
+    }
+  fflush (warc_current_file);
 
   if (opt.warc_maxsize > 0 && ftell (warc_current_file) >= opt.warc_maxsize)
     warc_start_new_file (false);
@@ -354,7 +388,7 @@ warc_write_warcinfo_record (char *filename)
   filename_copy = strdup (filename);
   filename_basename = basename (filename_copy);
 
-  warc_write_version ();
+  warc_write_start_record ();
   warc_write_header ("WARC-Type", "warcinfo");
   warc_write_header ("Content-Type", "application/warc-fields");
   warc_write_header ("WARC-Date", timestamp);
@@ -641,43 +675,6 @@ warc_load_cdx_dedup_file ()
   return true;
 }
 
-/* Writes the record (a WRecord pointer) to the current WARC file.
-   If the WARC file is full, the function will open a new file.
-   Returns true if the writing was successful, false otherwise. */
-//static bool
-//warc_store_record (void * record, unsigned long int * offset)
-//{
-//  if (warc_current_wfile != 0)
-//    {
-//      /* If the WARC file is full, start a new file. */
-//      if ( WFile_isFull (warc_current_wfile) )
-//        {
-//          if (! warc_start_new_file (false))
-//            {
-//              logprintf (LOG_NOTQUIET, _("Could not open new WARC file.\n"));
-//              return false;
-//            }
-//        }
-
-//      /* Point to the current info record. */
-//      warc_setWarcInfoId (record, warc_current_warcinfo_uuid_str);
-
-//      /* This will return true if writing failed. */
-//      if ( WFile_storeRecord (warc_current_wfile, record, offset) )
-//        {
-//          logprintf (LOG_NOTQUIET, _("Error writing record to WARC file.\n"));
-//          return false;
-//        }
-
-//      return true;
-//    }
-//  else
-//    {
-//      logprintf (LOG_NOTQUIET, _("Called warc_store_record without open WFile.\n"));
-//      return false;
-//    }
-//}
-
 /* Initializes the WARC writer (if opt.warc_filename is set).
    This should be called before any WARC record is written. */
 void
@@ -784,10 +781,8 @@ void
 warc_close ()
 {
   if (warc_current_file != NULL)
-    warc_write_metadata ();
-
-  if (warc_current_file != NULL)
     {
+      warc_write_metadata ();
       free (warc_current_warcinfo_uuid_str);
       fclose (warc_current_file);
     }
@@ -832,7 +827,7 @@ warc_tempfile ()
 bool
 warc_write_request_record (char *url, char *timestamp_str, char *record_uuid, ip_address *ip, FILE *body, long int payload_offset)
 {
-  warc_write_version ();
+  warc_write_start_record ();
   warc_write_header ("WARC-Type", "request");
   warc_write_header ("WARC-Target-URI", url);
   warc_write_header ("Content-Type", "application/http;msgtype=request");
@@ -883,9 +878,10 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   char response_uuid [48];
   warc_uuid_str (response_uuid);
 
+  fseek (warc_current_file, 0L, SEEK_END);
   size_t offset = ftell (warc_current_file);
 
-  warc_write_version ();
+  warc_write_start_record ();
   warc_write_header ("WARC-Target-URI", url);
   if (timestamp_str == NULL)
     {
@@ -1028,7 +1024,7 @@ warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str,
       warc_uuid_str (resource_uuid);
     }
 
-  warc_write_version ();
+  warc_write_start_record ();
   warc_write_header ("WARC-Type", "resource");
   if (content_type == NULL)
     content_type = "application/octet-stream";
