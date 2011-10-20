@@ -1,6 +1,0 @@
-/* exemple of warc bloc*/
-/*the bloc contains anythings */
-/* the bloc finishd with crlf crlf */
-(a*b)*c = a* (c*b)
-(a + b) * c = a *c +b *c
-

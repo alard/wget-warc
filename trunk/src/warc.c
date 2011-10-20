@@ -1,0 +1,1052 @@
+/* Utility functions for writing WARC files. */
+#define _GNU_SOURCE
+
+#include "wget.h"
+#include "hash.h"
+#include "utils.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <time.h>
+#include <uuid/uuid.h>
+#include <libgen.h>
+#include <tmpdir.h>
+#include <sha1.h>
+#include <base32.h>
+#include <unistd.h>
+
+#include "warc.h"
+
+extern char *version_string;
+
+/* Set by main in main.c */
+extern char *program_argstring;
+
+
+/* The log file (a temporary file that contains a copy
+   of the wget log). */
+static FILE *warc_log_fp;
+
+/* The manifest file (a temporary file that contains the
+   warcinfo uuid of every file in this crawl). */
+static FILE *warc_manifest_fp;
+
+/* The current WARC file (or NULL, if WARC is disabled). */
+FILE *warc_current_file;
+
+/* The current CDX file (or NULL, if CDX is disabled). */
+static FILE *warc_current_cdx_file;
+
+/* The record id of the warcinfo record of the current WARC file.  */
+static char *warc_current_warcinfo_uuid_str;
+
+/* The file name of the current WARC file. */
+static char *warc_current_filename;
+
+/* The serial number of the current WARC file.  This number is
+   incremented each time a new file is opened and is used in the
+   WARC file's filename. */
+static int  warc_current_file_number;
+
+/* The table of CDX records, if deduplication is enabled. */
+struct hash_table * warc_cdx_dedup_table;
+
+static bool warc_start_new_file (bool meta);
+
+
+struct warc_cdx_record
+{
+  char *url;
+  char *uuid;
+  char digest[SHA1_DIGEST_SIZE];
+};
+
+static unsigned long
+warc_hash_sha1_digest (const void *key)
+{
+  /* We just use some of the first bytes of the digest. */
+  unsigned long v = 0;
+  memcpy (&v, key, sizeof (unsigned long));
+  return v;
+}
+
+static int
+warc_cmp_sha1_digest (const void *digest1, const void *digest2)
+{
+  return !memcmp (digest1, digest2, SHA1_DIGEST_SIZE);
+}
+
+
+
+static size_t
+warc_write_buffer (const char *buffer, size_t size)
+{
+  return fwrite (buffer, 1, size, warc_current_file);
+}
+
+static bool
+warc_write_string (const char *str)
+{
+  size_t n = strlen (str);
+  return n == warc_write_buffer (str, n);
+}
+
+static bool
+warc_write_version ()
+{
+  return warc_write_string ("WARC/1.0\r\n");
+}
+
+static bool
+warc_write_header (const char *name, const char *value)
+{
+  if (value)
+    return warc_write_string (name) &&
+           warc_write_string (": ") &&
+           warc_write_string (value) &&
+           warc_write_string ("\r\n");
+  else
+    return true;
+}
+
+static bool
+warc_write_block_from_file (FILE *data_in)
+{
+  char *content_length;
+  fseek (data_in, 0L, SEEK_END);
+  if (! asprintf (&content_length, "%ld", ftell (data_in)))
+    return false;
+  warc_write_header ("Content-Length", content_length);
+  free (content_length);
+
+  warc_write_string ("\r\n");
+
+  fseek (data_in, 0L, SEEK_SET);
+  char buffer[BUFSIZ];
+  size_t s;
+  while ((s = fread (buffer, 1, BUFSIZ, data_in)) > 0)
+    {
+      if (warc_write_buffer (buffer, s) < s)
+        return false;
+    }
+  bool success = warc_write_buffer ("\r\n\r\n", 4);
+
+  if (opt.warc_maxsize > 0 && ftell (warc_current_file) >= opt.warc_maxsize)
+    warc_start_new_file (false);
+
+  return success;
+}
+
+
+/* warc_sha1_stream_with_payload is a modified copy of sha1_stream
+   from gnulib/sha1.c.  This version calculates two digests in one go.
+
+   Compute SHA1 message digests for bytes read from STREAM.  The
+   digest of the complete file will be written into the 16 bytes
+   beginning at RES_BLOCK.
+   
+   If payload_offset >= 0, a second digest will be calculated of the
+   portion of the file starting at payload_offset and continuing to
+   the end of the file.  The digest number will be written into the
+   16 bytes beginning ad RES_PAYLOAD.  */
+static int
+warc_sha1_stream_with_payload (FILE *stream, void *res_block, void *res_payload, long int payload_offset)
+{
+#define BLOCKSIZE 32768
+
+  struct sha1_ctx ctx_block;
+  struct sha1_ctx ctx_payload;
+  long int pos;
+  size_t sum;
+
+  char *buffer = malloc (BLOCKSIZE + 72);
+  if (!buffer)
+    return 1;
+
+  /* Initialize the computation context.  */
+  sha1_init_ctx (&ctx_block);
+  if (payload_offset >= 0)
+    sha1_init_ctx (&ctx_payload);
+
+  pos = 0;
+
+  /* Iterate over full file contents.  */
+  while (1)
+    {
+      /* We read the file in blocks of BLOCKSIZE bytes.  One call of the
+         computation function processes the whole buffer so that with the
+         next round of the loop another block can be read.  */
+      size_t n;
+      sum = 0;
+
+      /* Read block.  Take care for partial reads.  */
+      while (1)
+        {
+          n = fread (buffer + sum, 1, BLOCKSIZE - sum, stream);
+
+          sum += n;
+          pos += n;
+
+          if (sum == BLOCKSIZE)
+            break;
+
+          if (n == 0)
+            {
+              /* Check for the error flag IFF N == 0, so that we don't
+                 exit the loop after a partial read due to e.g., EAGAIN
+                 or EWOULDBLOCK.  */
+              if (ferror (stream))
+                {
+                  free (buffer);
+                  return 1;
+                }
+              goto process_partial_block;
+            }
+
+          /* We've read at least one byte, so ignore errors.  But always
+             check for EOF, since feof may be true even though N > 0.
+             Otherwise, we could end up calling fread after EOF.  */
+          if (feof (stream))
+            goto process_partial_block;
+        }
+
+      /* Process buffer with BLOCKSIZE bytes.  Note that
+                        BLOCKSIZE % 64 == 0
+       */
+      sha1_process_block (buffer, BLOCKSIZE, &ctx_block);
+      if (payload_offset >= 0 && payload_offset < pos)
+        {
+          /* At least part of the buffer contains data from payload. */
+          int start_of_payload = payload_offset - (pos - BLOCKSIZE);
+          if (start_of_payload <= 0)
+            /* All bytes in the buffer belong to the payload. */
+            start_of_payload = 0;
+
+          /* Process the payload part of the buffer.
+             Note: we can't use  sha1_process_block  here even if we
+             process the complete buffer.  Because the payload doesn't
+             have to start with a full block, there may still be some
+             bytes left from the previous buffer.  Therefore, we need
+             to continue with  sha1_process_bytes.  */
+          sha1_process_bytes (buffer + start_of_payload, BLOCKSIZE - start_of_payload, &ctx_payload);
+        }
+    }
+
+ process_partial_block:;
+
+  /* Process any remaining bytes.  */
+  if (sum > 0)
+    {
+      sha1_process_bytes (buffer, sum, &ctx_block);
+      if (payload_offset >= 0 && payload_offset < pos)
+        {
+          /* At least part of the buffer contains data from payload. */
+          int start_of_payload = payload_offset - (pos - sum);
+          if (start_of_payload <= 0)
+            /* All bytes in the buffer belong to the payload. */
+            start_of_payload = 0;
+
+          /* Process the payload part of the buffer. */
+          sha1_process_bytes (buffer + start_of_payload, sum - start_of_payload, &ctx_payload);
+        }
+    }
+
+  /* Construct result in desired memory.  */
+  sha1_finish_ctx (&ctx_block,   res_block);
+  if (payload_offset >= 0)
+    sha1_finish_ctx (&ctx_payload, res_payload);
+  free (buffer);
+  return 0;
+
+#undef BLOCKSIZE
+}
+
+/* Converts the SHA1 digest to a base32-encoded string.
+   "sha1:DIGEST\0"  (Allocates a new string for the response.)  */
+static char *
+warc_base32_sha1_digest (char *sha1_digest)
+{
+  // length: "sha1:" + digest + "\0"
+  char *sha1_base32 = malloc (BASE32_LENGTH(SHA1_DIGEST_SIZE) + 1 + 5 );
+  base32_encode (sha1_digest, SHA1_DIGEST_SIZE, sha1_base32 + 5, BASE32_LENGTH(SHA1_DIGEST_SIZE) + 1);
+  memcpy (sha1_base32, "sha1:", 5);
+  sha1_base32[BASE32_LENGTH(SHA1_DIGEST_SIZE) + 5] = '\0';
+  return sha1_base32;
+}
+
+
+/* Sets the digest headers of the record.
+   This method will calculate the block digest and, if payload_offset >= 0,
+   will also calculate the payload digest of the payload starting at the
+   provided offset.  */
+static void
+warc_calc_digests (FILE *file, long payload_offset)
+{
+  if (opt.warc_digests_enabled)
+    {
+      /* Calculate the block and payload digests. */
+      char sha1_res_block[SHA1_DIGEST_SIZE];
+      char sha1_res_payload[SHA1_DIGEST_SIZE];
+
+      rewind (file);
+      if (warc_sha1_stream_with_payload (file, sha1_res_block, sha1_res_payload, payload_offset) == 0)
+        {
+          char *digest;
+
+          digest = warc_base32_sha1_digest (sha1_res_block);
+          warc_write_header ("WARC-Block-Digest", digest);
+          free (digest);
+
+          if (payload_offset >= 0)
+            {
+              digest = warc_base32_sha1_digest (sha1_res_payload);
+              warc_write_header ("WARC-Payload-Digest", digest);
+              free (digest);
+            }
+        }
+    }
+}
+
+
+/* Fills timestamp with the current time and date.
+   The UTC time is formatted following ISO 8601, as required
+   for use in the WARC-Date header.
+   The timestamp will be 21 characters long. */
+void
+warc_timestamp (char *timestamp)
+{
+  time_t rawtime;
+  struct tm * timeinfo;
+  time ( &rawtime );
+  timeinfo = gmtime (&rawtime);
+  strftime (timestamp, 21, "%Y-%m-%dT%H:%M:%SZ", timeinfo);
+}
+
+/* Fills urn_str with a UUID in the format required
+   for the WARC-Record-Id header.
+   The string will be 47 characters long. */
+void
+warc_uuid_str (char *urn_str)
+{
+  uuid_t record_id;
+  uuid_generate (record_id);
+  char uuid_str[37];
+  uuid_unparse (record_id, uuid_str);
+  sprintf(urn_str, "<urn:uuid:%s>", uuid_str);
+}
+
+/* Write a warcinfo record to the current file.
+   Updates warc_current_warcinfo_uuid_str. */
+bool
+warc_write_warcinfo_record (char *filename)
+{
+  /* Write warc-info record as the first record of the file. */
+  /* We add the record id of this info record to the other records in the file. */
+  warc_current_warcinfo_uuid_str = (char *) malloc (48);
+  warc_uuid_str (warc_current_warcinfo_uuid_str);
+
+  char timestamp[22];
+  warc_timestamp (timestamp);
+
+  char *filename_copy, *filename_basename;
+  filename_copy = strdup (filename);
+  filename_basename = basename (filename_copy);
+
+  warc_write_version ();
+  warc_write_header ("WARC-Type", "warcinfo");
+  warc_write_header ("Content-Type", "application/warc-fields");
+  warc_write_header ("WARC-Date", timestamp);
+  warc_write_header ("WARC-Record-ID", warc_current_warcinfo_uuid_str);
+  warc_write_header ("WARC-Filename", filename_basename);
+
+  /* Create content.  */
+  FILE *warc_tmp = warc_tempfile ();
+  if (warc_tmp == NULL)
+    {
+      free (filename_copy);
+      return false;
+    }
+
+  fprintf (warc_tmp, "software: Wget/%s (%s)\r\n", version_string, OS_TYPE);
+  fprintf (warc_tmp, "format: WARC File Format 1.0\r\n");
+  fprintf (warc_tmp, "conformsTo: http://bibnum.bnf.fr/WARC/WARC_ISO_28500_version1_latestdraft.pdf\r\n");
+  fprintf (warc_tmp, "robots: %s\r\n", (opt.use_robots ? "classic" : "off"));
+  fprintf (warc_tmp, "wget-arguments: %s\r\n", program_argstring);
+  /* Add the user headers, if any. */
+  if (opt.warc_user_headers)
+    {
+      int i;
+      for (i = 0; opt.warc_user_headers[i]; i++)
+        fprintf (warc_tmp, "%s\r\n", opt.warc_user_headers[i]);
+    }
+  fprintf(warc_tmp, "\r\n");
+
+  warc_calc_digests (warc_tmp, -1);
+  bool success = warc_write_block_from_file (warc_tmp);
+
+  if (! success)
+    {
+      logprintf (LOG_NOTQUIET, _("Error writing warcinfo record to WARC file.\n"));
+    }
+
+  free (filename_copy);
+  fclose (warc_tmp);
+  return success;
+}
+
+/* Opens a new WARC file.
+   If META is true, generates a filename ending with 'meta.warc.gz'.
+   
+   This method will:
+   1. close the current WARC file (if there is one);
+   2. increment warc_current_file_number;
+   3. open a new WARC file;
+   4. write the initial warcinfo record.
+
+   Returns true on success, false otherwise.
+   */
+static bool
+warc_start_new_file (bool meta)
+{
+  if (opt.warc_filename == NULL)
+    return false;
+
+  if (warc_current_file != NULL)
+    fclose (warc_current_file);
+  if (warc_current_warcinfo_uuid_str)
+    free (warc_current_warcinfo_uuid_str);
+  if (warc_current_filename)
+    free (warc_current_filename);
+
+  warc_current_file_number++;
+
+  int base_filename_length = strlen (opt.warc_filename);
+  /* filename format:  base + "-" + 5 digit serial number + ".warc.gz" */
+  char *new_filename = malloc (base_filename_length + 1 + 5 + 8 + 1);
+  warc_current_filename = new_filename;
+
+  char *extension = (opt.warc_compression_enabled ? "warc.gz" : "warc");
+
+  /* If max size is enabled, we add a serial number to the file names. */
+  if (meta)
+    sprintf (new_filename, "%s-meta.%s", opt.warc_filename, extension);
+  else if (opt.warc_maxsize > 0)
+    sprintf (new_filename, "%s-%05d.%s", opt.warc_filename, warc_current_file_number, extension);
+  else
+    sprintf (new_filename, "%s.%s", opt.warc_filename, extension);
+
+  logprintf (LOG_VERBOSE, _("Opening WARC file %s.\n\n"), quote (new_filename));
+
+  /* Open the WARC file. */
+  warc_current_file = fopen (new_filename, "wb");
+  if (warc_current_file == NULL)
+    {
+      logprintf (LOG_NOTQUIET, _("Error opening WARC file %s.\n"), quote (new_filename));
+      return false;
+    }
+
+  if (! warc_write_warcinfo_record (new_filename))
+    return false;
+
+  /* Add warcinfo uuid to manifest. */
+  if (warc_manifest_fp)
+    fprintf (warc_manifest_fp, "%s\n", warc_current_warcinfo_uuid_str);
+
+  return true;
+}
+
+/* Opens the CDX file for output. */
+static bool
+warc_start_cdx_file ()
+{
+  int filename_length = strlen (opt.warc_filename);
+  char *cdx_filename = alloca (filename_length + 4 + 1);
+  memcpy (cdx_filename, opt.warc_filename, filename_length);
+  memcpy (cdx_filename + filename_length, ".cdx", 5);
+  warc_current_cdx_file = fopen (cdx_filename, "a+");
+  if (warc_current_cdx_file == NULL)
+    return false;
+
+  /* Print the CDX header.
+   *
+   * a - original url
+   * b - date
+   * m - mime type
+   * s - response code
+   * k - new style checksum
+   * r - redirect
+   * M - meta tags
+   * V - compressed arc file offset
+   * g - file name
+   * u - record-id
+   */
+  fprintf (warc_current_cdx_file, " CDX a b a m s k r M V g u\n");
+  fflush (warc_current_cdx_file);
+
+  return true;
+}
+
+/* Loads the CDX file from opt.warc_cdx_dedup_filename and fills
+   the warc_cdx_dedup_table. */
+bool
+warc_load_cdx_dedup_file ()
+{
+#define CDX_FIELDSEP " \t\r\n"
+  FILE *f = fopen (opt.warc_cdx_dedup_filename, "r");
+  if (f == NULL)
+    return false;
+
+  int field_num_original_url = -1;
+  int field_num_checksum = -1;
+  int field_num_record_id = -1;
+
+  char *lineptr = NULL;
+  size_t n = 0;
+  size_t line_length;
+
+  /* The first line should contain the CDX header.
+     Format:  " CDX x x x x x"
+     where x are field type indicators.  For our purposes, we only
+     need 'a' (the original url), 'k' (the SHA1 checksum) and
+     'u' (the WARC record id). */
+  line_length = getline (&lineptr, &n, f);
+  if (line_length != -1)
+    {
+      /* Parse the CDX header. */
+      char *token;
+      char *save_ptr;
+      token = strtok_r (lineptr, CDX_FIELDSEP, &save_ptr);
+      
+      if (token != NULL && strcmp (token, "CDX") == 0)
+        {
+          int field_num = 0;
+          while (token != NULL)
+            {
+              token = strtok_r (NULL, CDX_FIELDSEP, &save_ptr);
+              if (token != NULL)
+                {
+                  switch (token[0])
+                    {
+                    case 'a':
+                      field_num_original_url = field_num;
+                      break;
+                    case 'k':
+                      field_num_checksum = field_num;
+                      break;
+                    case 'u':
+                      field_num_record_id = field_num;
+                      break;
+                    }
+                }
+              field_num++;
+            }
+        }
+    }
+
+  /* If the file contains all three fields, read the complete file. */
+  if (field_num_original_url == -1
+      || field_num_checksum == -1
+      || field_num_record_id == -1)
+    {
+      if (field_num_original_url == -1)
+        logprintf (LOG_NOTQUIET, _("CDX file does not list original urls. (Missing column 'a'.)\n"));
+      if (field_num_checksum == -1)
+        logprintf (LOG_NOTQUIET, _("CDX file does not list checksums. (Missing column 'k'.)\n"));
+      if (field_num_record_id == -1)
+        logprintf (LOG_NOTQUIET, _("CDX file does not list record ids. (Missing column 'u'.)\n"));
+    }
+  else
+    {
+      /* Initialize the table. */
+      warc_cdx_dedup_table = hash_table_new (1000, warc_hash_sha1_digest, warc_cmp_sha1_digest);
+
+      do
+        {
+          line_length = getline (&lineptr, &n, f);
+          if (line_length != -1)
+            {
+              char *original_url = NULL;
+              char *checksum = NULL;
+              char *record_id = NULL;
+
+              char *token;
+              char *save_ptr;
+              token = strtok_r (lineptr, CDX_FIELDSEP, &save_ptr);
+
+              /* Read this line to get the fields we need. */
+              int field_num = 0;
+              while (token != NULL)
+                {
+                  char **val;
+                  if (field_num == field_num_original_url)
+                    val = &original_url;
+                  else if (field_num == field_num_checksum)
+                    val = &checksum;
+                  else if (field_num == field_num_record_id)
+                    val = &record_id;
+                  else
+                    val = NULL;
+
+                  if (val != NULL)
+                    *val = strdup (token);
+
+                  token = strtok_r (NULL, CDX_FIELDSEP, &save_ptr);
+                  field_num++;
+                }
+
+              if (original_url != NULL && checksum != NULL && record_id != NULL)
+                {
+                  /* For some extra efficiency, we decode the base32 encoded
+                     checksum value.  This should produce exactly SHA1_DIGEST_SIZE
+                     bytes.  */
+                  size_t checksum_l;
+                  char * checksum_v;
+                  base32_decode_alloc (checksum, strlen (checksum), &checksum_v, &checksum_l);
+                  free (checksum);
+
+                  if (checksum_v != NULL && checksum_l == SHA1_DIGEST_SIZE)
+                    {
+                      /* This is a valid line with a valid checksum. */
+                      struct warc_cdx_record * rec = malloc (sizeof (struct warc_cdx_record));
+                      rec->url = original_url;
+                      rec->uuid = record_id;
+                      memcpy (rec->digest, checksum_v, SHA1_DIGEST_SIZE);
+                      hash_table_put (warc_cdx_dedup_table, rec->digest, rec);
+                      free (checksum_v);
+                    }
+                  else
+                    {
+                      free (original_url);
+                      if (checksum_v != NULL)
+                        free (checksum_v);
+                      free (record_id);
+                    }
+                }
+            }
+        }
+      while (line_length != -1);
+
+      /* Print results. */
+      int nrecords = hash_table_count (warc_cdx_dedup_table);
+      logprintf (LOG_VERBOSE, ngettext ("Loaded %d record from CDX.\n\n",
+                                        "Loaded %d records from CDX.\n\n", nrecords),
+                              nrecords);
+    }
+
+  fclose (f);
+#undef CDX_FIELDSEP
+
+  return true;
+}
+
+/* Writes the record (a WRecord pointer) to the current WARC file.
+   If the WARC file is full, the function will open a new file.
+   Returns true if the writing was successful, false otherwise. */
+//static bool
+//warc_store_record (void * record, unsigned long int * offset)
+//{
+//  if (warc_current_wfile != 0)
+//    {
+//      /* If the WARC file is full, start a new file. */
+//      if ( WFile_isFull (warc_current_wfile) )
+//        {
+//          if (! warc_start_new_file (false))
+//            {
+//              logprintf (LOG_NOTQUIET, _("Could not open new WARC file.\n"));
+//              return false;
+//            }
+//        }
+
+//      /* Point to the current info record. */
+//      warc_setWarcInfoId (record, warc_current_warcinfo_uuid_str);
+
+//      /* This will return true if writing failed. */
+//      if ( WFile_storeRecord (warc_current_wfile, record, offset) )
+//        {
+//          logprintf (LOG_NOTQUIET, _("Error writing record to WARC file.\n"));
+//          return false;
+//        }
+
+//      return true;
+//    }
+//  else
+//    {
+//      logprintf (LOG_NOTQUIET, _("Called warc_store_record without open WFile.\n"));
+//      return false;
+//    }
+//}
+
+/* Initializes the WARC writer (if opt.warc_filename is set).
+   This should be called before any WARC record is written. */
+void
+warc_init ()
+{
+  if (opt.warc_filename != NULL)
+    {
+      if (opt.warc_cdx_dedup_filename != NULL)
+        {
+          if (! warc_load_cdx_dedup_file ())
+            {
+              logprintf (LOG_NOTQUIET,
+                         _("Could not read CDX file %s for deduplication.\n"),
+                         quote (opt.warc_cdx_dedup_filename));
+              exit(1);
+            }
+        }
+
+      warc_manifest_fp = warc_tempfile ();
+      if (warc_manifest_fp == NULL)
+        {
+          logprintf (LOG_NOTQUIET, _("Could not open temporary WARC manifest file.\n"));
+          exit(1);
+        }
+
+      if (opt.warc_keep_log)
+        {
+          warc_log_fp = warc_tempfile ();
+          if (warc_log_fp == NULL)
+            {
+              logprintf (LOG_NOTQUIET, _("Could not open temporary WARC log file.\n"));
+              exit(1);
+            }
+          log_set_warc_log_fp (warc_log_fp);
+        }
+
+      warc_current_file_number = -1;
+      if (! warc_start_new_file (false))
+        {
+          logprintf (LOG_NOTQUIET, _("Could not open WARC file.\n"));
+          exit(1);
+        }
+
+      if (opt.warc_cdx_enabled)
+        {
+          if (! warc_start_cdx_file ())
+            {
+              logprintf (LOG_NOTQUIET, _("Could not open CDX file for output.\n"));
+              exit(1);
+            }
+        }
+    }
+}
+
+/* Writes metadata (manifest, configuration, log file) to the WARC file. */
+void
+warc_write_metadata ()
+{
+  /* If there are multiple WARC files, the metadata should be written to a separate file. */
+  if (opt.warc_maxsize > 0)
+    warc_start_new_file (true);
+
+  char manifest_uuid [48];
+  warc_uuid_str (manifest_uuid);
+
+  fflush (warc_manifest_fp);
+  warc_write_resource_record (manifest_uuid,
+                              "metadata://gnu.org/software/wget/warc/MANIFEST.txt",
+                              NULL, NULL, NULL, "text/plain",
+                              warc_manifest_fp, -1);
+  /* warc_write_resource_record has closed warc_manifest_fp. */
+
+  FILE * warc_tmp_fp = warc_tempfile ();
+  if (warc_tmp_fp == NULL)
+    {
+      logprintf (LOG_NOTQUIET, _("Could not open temporary WARC file.\n"));
+      exit(1);
+    }
+  fflush (warc_tmp_fp);
+  fprintf (warc_tmp_fp, "%s\n", program_argstring);
+
+  warc_write_resource_record (manifest_uuid,
+                              "metadata://gnu.org/software/wget/warc/wget_arguments.txt",
+                              NULL, NULL, NULL, "text/plain",
+                              warc_tmp_fp, -1);
+  /* warc_write_resource_record has closed warc_tmp_fp. */
+
+  if (warc_log_fp != NULL)
+    {
+      warc_write_resource_record (NULL,
+                                  "metadata://gnu.org/software/wget/warc/wget.log",
+                                  NULL, manifest_uuid, NULL, "text/plain",
+                                  warc_log_fp, -1);
+      /* warc_write_resource_record has closed warc_log_fp. */
+
+      warc_log_fp = NULL;
+      log_set_warc_log_fp (NULL);
+    }
+}
+
+/* Finishes the WARC writing.
+   This should be called at the end of the program. */
+void
+warc_close ()
+{
+  if (warc_current_file != NULL)
+    warc_write_metadata ();
+
+  if (warc_current_file != NULL)
+    {
+      free (warc_current_warcinfo_uuid_str);
+      fclose (warc_current_file);
+    }
+  if (warc_current_cdx_file != NULL)
+    fclose (warc_current_cdx_file);
+  if (warc_log_fp != NULL)
+    {
+      fclose (warc_log_fp);
+      log_set_warc_log_fp (NULL);
+    }
+}
+
+/* Creates a temporary file for writing WARC output.
+   The temporary file will be created in opt.warc_tempdir.
+   Returns the pointer to the temporary file, or NULL. */
+FILE *
+warc_tempfile ()
+{
+  char filename[100];
+  if (path_search (filename, 100, opt.warc_tempdir, "wget", true) == -1)
+    return NULL;
+
+  int fd = mkstemp (filename);
+  if (fd < 0)
+    return NULL;
+
+  if (unlink (filename) < 0)
+    return NULL;
+
+  return fdopen (fd, "wb+");
+}
+
+
+/* Writes a request record to the WARC file.
+   url  is the target uri of the request,
+   timestamp_str  is the timestamp of the request (generated with warc_timestamp),
+   record_uuid  is the uuid of the request (generated with warc_uuid_str),
+   body  is a pointer to a file containing the request headers and body.
+   ip  is the ip address of the server (or NULL),
+   Calling this function will close body.
+   Returns true on success, false on error. */
+bool
+warc_write_request_record (char *url, char *timestamp_str, char *record_uuid, ip_address *ip, FILE *body, long int payload_offset)
+{
+  warc_write_version ();
+  warc_write_header ("WARC-Type", "request");
+  warc_write_header ("WARC-Target-URI", url);
+  warc_write_header ("Content-Type", "application/http;msgtype=request");
+  if (timestamp_str == NULL)
+    {
+      char timestamp[21];
+      warc_timestamp (timestamp);
+      warc_write_header ("WARC-Date", timestamp);
+    }
+  else
+    {
+      warc_write_header ("WARC-Date", timestamp_str);
+    }
+  warc_write_header ("WARC-Record-ID", record_uuid);
+  if (ip)
+    warc_write_header ("WARC-IP-Address", print_address (ip));
+  warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
+
+  warc_calc_digests (body, payload_offset);
+
+  bool success = warc_write_block_from_file (body);
+  
+  fclose (body);
+
+  return success;
+}
+
+/* Writes a response record to the WARC file.
+   url  is the target uri of the request/response,
+   timestamp_str  is the timestamp of the request that generated this response
+                  (generated with warc_timestamp),
+   concurrent_to_uuid  is the uuid of the request for that generated this response
+                 (generated with warc_uuid_str),
+   ip  is the ip address of the server (or NULL),
+   body  is a pointer to a file containing the response headers and body.
+   mime_type  is the mime type of the response body (will be printed to CDX),
+   response_code  is the HTTP response code (will be printed to CDX),
+   redirect_location  is the contents of the Location: header, or NULL (will be printed to CDX),
+   Calling this function will close body.
+   Returns true on success, false on error. */
+bool
+warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset, char *mime_type, int response_code, char *redirect_location)
+{
+  char *digest = NULL;
+  char sha1_res_block[SHA1_DIGEST_SIZE];
+  char sha1_res_payload[SHA1_DIGEST_SIZE];
+
+  char response_uuid [48];
+  warc_uuid_str (response_uuid);
+
+  size_t offset = ftell (warc_current_file);
+
+  warc_write_version ();
+  warc_write_header ("WARC-Target-URI", url);
+  if (timestamp_str == NULL)
+    {
+      char timestamp[21];
+      warc_timestamp (timestamp);
+      warc_write_header ("WARC-Date", timestamp);
+    }
+  else
+    {
+      warc_write_header ("WARC-Date", timestamp_str);
+    }
+  warc_write_header ("WARC-Record-ID", response_uuid);
+  warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
+  if (ip)
+    warc_write_header ("WARC-IP-Address", print_address (ip));
+  warc_write_header ("Content-Type", "application/http;msgtype=response");
+  warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
+
+  if (opt.warc_digests_enabled)
+    {
+      /* Calculate the block and payload digests. */
+      rewind (body);
+      if (warc_sha1_stream_with_payload (body, sha1_res_block, sha1_res_payload, payload_offset) == 0)
+        {
+          /* Decide (based on url + payload digest) if we have seen this
+             data before. */
+          if (warc_cdx_dedup_table != NULL)
+            {
+              /* Find a CDX record with this payload digest. */
+              char *key;
+              struct warc_cdx_record *rec_existing;
+              hash_table_get_pair (warc_cdx_dedup_table, sha1_res_payload, &key, &rec_existing);
+
+              if (rec_existing != NULL && !strcmp (rec_existing->url, url))
+                {
+                  /* Found an existing record. */
+                  logprintf (LOG_VERBOSE, _("Found exact match in CDX file. Saving revisit record to WARC.\n"));
+
+                  /* Make the record a revisit record. */
+                  warc_write_header ("WARC-Type", "revisit");
+                  warc_write_header ("WARC-Profile", "http://netpreserve.org/warc/1.0/revisit/identical-payload-digest");
+                  warc_write_header ("WARC-Refers-To", rec_existing->uuid);
+                  warc_write_header ("WARC-Truncated", "length");
+
+                  /* Remove the payload from the file. */
+                  if (payload_offset > 0)
+                    {
+                      if (ftruncate (fileno (body), payload_offset) == -1)
+                        return false;
+                    }
+
+                  /* Digests: payload refers to the old payload, but the block
+                     digest must be calculated based on the truncated block. */
+
+                  digest = warc_base32_sha1_digest (sha1_res_payload);
+                  warc_write_header ("WARC-Payload-Digest", digest);
+                  free (digest);
+
+                  sha1_stream (body, sha1_res_block);
+
+                  digest = warc_base32_sha1_digest (sha1_res_block);
+                  warc_write_header ("WARC-Block-Digest", digest);
+                  free (digest);
+
+                  bool result = warc_write_block_from_file (body);
+
+                  fclose (body);
+                  return result;
+                }
+            }
+        }
+
+      digest = warc_base32_sha1_digest (sha1_res_block);
+      warc_write_header ("WARC-Block-Digest", digest);
+      free (digest);
+
+      digest = warc_base32_sha1_digest (sha1_res_payload);
+      warc_write_header ("WARC-Payload-Digest", digest);
+    }
+
+  /* Not a revisit, just store the record. */
+  warc_write_header ("WARC-Type", "response");
+  
+  bool result = warc_write_block_from_file (body);
+  fclose (body);
+
+  if (result && opt.warc_cdx_enabled)
+    {
+      /* Add this record to the CDX. */
+      /* Transform the timestamp. */
+      char timestamp_str_cdx [15];
+      memcpy (timestamp_str_cdx     , timestamp_str     , 4); /* "YYYY" "-" */
+      memcpy (timestamp_str_cdx +  4, timestamp_str +  5, 2); /* "mm"   "-" */
+      memcpy (timestamp_str_cdx +  6, timestamp_str +  8, 2); /* "dd"   "T" */
+      memcpy (timestamp_str_cdx +  8, timestamp_str + 11, 2); /* "HH"   ":" */
+      memcpy (timestamp_str_cdx + 10, timestamp_str + 14, 2); /* "MM"   ":" */
+      memcpy (timestamp_str_cdx + 12, timestamp_str + 17, 2); /* "SS"   "Z" */
+      timestamp_str_cdx[14] = '\0';
+      
+      /* Rewrite the checksum. */
+      char *checksum;
+      if (opt.warc_digests_enabled)
+        checksum = digest + 5; /* Skip the "sha1:" */
+      else
+        checksum = "-";
+
+      if (mime_type == NULL || strlen(mime_type) == 0)
+        mime_type = "-";
+      if (redirect_location == NULL || strlen(redirect_location) == 0)
+        redirect_location = "-";
+
+      /* Print the CDX line. */
+      fprintf (warc_current_cdx_file, "%s %s %s %s %d %s %s - %ld %s %s\n", url, timestamp_str_cdx, url, mime_type, response_code, checksum, redirect_location, offset, warc_current_filename, response_uuid);
+      fflush (warc_current_cdx_file);
+    }
+
+  if (opt.warc_digests_enabled)
+    free (digest);
+
+  return result;
+}
+
+/* Writes a resource record to the WARC file.
+   resource_uuid  is the uuid of the resource (or NULL),
+   url  is the target uri of the resource,
+   timestamp_str  is the timestamp (generated with warc_timestamp),
+   concurrent_to_uuid  is the uuid of the request for that generated this resource
+                 (generated with warc_uuid_str) or NULL,
+   ip  is the ip address of the server (or NULL),
+   content_type  is the mime type of the body (or NULL),
+   body  is a pointer to a file containing the resource data.
+   Calling this function will close body.
+   Returns true on success, false on error. */
+bool
+warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, char *content_type, FILE *body, long int payload_offset)
+{
+  if (resource_uuid == NULL)
+    {
+      resource_uuid = alloca (48);
+      warc_uuid_str (resource_uuid);
+    }
+
+  warc_write_version ();
+  warc_write_header ("WARC-Type", "resource");
+  if (content_type == NULL)
+    content_type = "application/octet-stream";
+  warc_write_header ("Content-Type", content_type);
+  warc_write_header ("WARC-Target-URI", url);
+  warc_write_header ("WARC-Date", timestamp_str);
+  warc_write_header ("WARC-Record-ID", resource_uuid);
+  warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
+  warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
+  if (ip)
+    warc_write_header ("WARC-IP-Address", print_address (ip));
+
+  warc_calc_digests (body, payload_offset);
+
+  bool success = warc_write_block_from_file (body);
+  
+  fclose (body);
+
+  return success;
+}
+

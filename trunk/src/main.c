@@ -55,7 +55,7 @@ as that of the covered work.  */
 #include "spider.h"
 #include "http.h"               /* for save_cookies */
 #include "ptimer.h"
-#include "wget_warc.h"
+#include "warc.h"
 
 #include <getopt.h>
 #include <getpass.h>

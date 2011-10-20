@@ -49,7 +49,7 @@ as that of the covered work.  */
 #include "netrc.h"
 #include "convert.h"            /* for downloaded_file */
 #include "recur.h"              /* for INFINITE_RECURSION */
-#include "wget_warc.h"
+#include "warc.h"
 
 #ifdef __VMS
 # include "vms.h"
