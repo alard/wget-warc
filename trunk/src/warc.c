@@ -42,6 +42,7 @@ static FILE *warc_current_file;
 static gzFile *warc_current_gzfile;
 static size_t warc_current_gzfile_offset;
 static size_t warc_current_gzfile_uncompressed_size;
+static bool warc_write_ok;
 
 /* The current CDX file (or NULL, if CDX is disabled). */
 static FILE *warc_current_cdx_file;
@@ -102,8 +103,14 @@ warc_write_buffer (const char *buffer, size_t size)
 static bool
 warc_write_string (const char *str)
 {
+  if (!warc_write_ok)
+    return false;
+
   size_t n = strlen (str);
-  return n == warc_write_buffer (str, n);
+  if (n != warc_write_buffer (str, n))
+    warc_write_ok = false;
+
+  return warc_write_ok;
 }
 
 
@@ -115,6 +122,9 @@ warc_write_string (const char *str)
 static bool
 warc_write_start_record ()
 {
+  if (!warc_write_ok)
+    return false;
+
   /* Start a GZIP stream, if required. */
   if (opt.warc_compression_enabled)
     {
@@ -128,23 +138,26 @@ warc_write_start_record ()
       if (warc_current_gzfile == NULL)
         {
           logprintf (LOG_NOTQUIET, _("Error opening GZIP stream to WARC file.\n"));
+          warc_write_ok = false;
           return false;
         }
     }
 
-  return warc_write_string ("WARC/1.0\r\n");
+  warc_write_string ("WARC/1.0\r\n");
+  return warc_write_ok;
 }
 
 static bool
 warc_write_header (const char *name, const char *value)
 {
   if (value)
-    return warc_write_string (name) &&
-           warc_write_string (": ") &&
-           warc_write_string (value) &&
-           warc_write_string ("\r\n");
-  else
-    return true;
+    {
+      warc_write_string (name);
+      warc_write_string (": ");
+      warc_write_string (value);
+      warc_write_string ("\r\n");
+    }
+  return warc_write_ok;
 }
 
 static bool
@@ -153,34 +166,43 @@ warc_write_block_from_file (FILE *data_in)
   char *content_length;
   fseek (data_in, 0L, SEEK_END);
   if (! asprintf (&content_length, "%ld", ftell (data_in)))
-    return false;
+    {
+      warc_write_ok = false;
+      return false;
+    }
   warc_write_header ("Content-Length", content_length);
   free (content_length);
 
   warc_write_string ("\r\n");
 
-  fseek (data_in, 0L, SEEK_SET);
+  if (fseek (data_in, 0L, SEEK_SET) != 0)
+    warc_write_ok = false;
+
   char buffer[BUFSIZ];
   size_t s;
-  while ((s = fread (buffer, 1, BUFSIZ, data_in)) > 0)
+  while (warc_write_ok && (s = fread (buffer, 1, BUFSIZ, data_in)) > 0)
     {
       if (warc_write_buffer (buffer, s) < s)
-        return false;
+        warc_write_ok = false;
     }
 
-  return true;
+  return warc_write_ok;
 }
 
 static bool
 warc_write_end_record ()
 {
-  bool success = warc_write_buffer ("\r\n\r\n", 4);
+  warc_write_buffer ("\r\n\r\n", 4);
 
   /* We start a new gzip stream for each record.  */
-  if (warc_current_gzfile)
+  if (warc_write_ok && warc_current_gzfile)
     {
       if (gzclose (warc_current_gzfile) != Z_OK)
-        return false;
+        {
+          warc_write_ok = false;
+          return false;
+        }
+
       fflush (warc_current_file);
       fseek (warc_current_file, 0, SEEK_END);
 
@@ -194,7 +216,10 @@ warc_write_end_record ()
       char static_header[GZIP_STATIC_HEADER_SIZE];
       size_t result = fread (static_header, 1, GZIP_STATIC_HEADER_SIZE, warc_current_file);
       if (result != GZIP_STATIC_HEADER_SIZE)
-        return false;
+        {
+          warc_write_ok = false;
+          return false;
+        }
 
       static_header[OFF_FLG] = static_header[OFF_FLG] | FLG_FEXTRA;
 
@@ -231,7 +256,7 @@ warc_write_end_record ()
   if (opt.warc_maxsize > 0 && ftell (warc_current_file) >= opt.warc_maxsize)
     warc_start_new_file (false);
 
-  return success;
+  return warc_write_ok;
 }
 
 
@@ -259,7 +284,7 @@ warc_write_ip_header (ip_address *ip)
   if (ip != NULL)
     return warc_write_header ("WARC-IP-Address", print_address (ip));
   else
-    return true;
+    return warc_write_ok;
 }
 
 
@@ -507,17 +532,17 @@ warc_write_warcinfo_record (char *filename)
   fprintf(warc_tmp, "\r\n");
 
   warc_write_digest_headers (warc_tmp, -1);
-  bool success = warc_write_block_from_file (warc_tmp)
-                 && warc_write_end_record ();
+  warc_write_block_from_file (warc_tmp);
+  warc_write_end_record ();
 
-  if (! success)
+  if (! warc_write_ok)
     {
       logprintf (LOG_NOTQUIET, _("Error writing warcinfo record to WARC file.\n"));
     }
 
   free (filename_copy);
   fclose (warc_tmp);
-  return success;
+  return warc_write_ok;
 }
 
 /* Opens a new WARC file.
@@ -789,6 +814,8 @@ warc_find_duplicate_cdx_record (char *url, char *sha1_digest_payload)
 void
 warc_init ()
 {
+  warc_write_ok = true;
+
   if (opt.warc_filename != NULL)
     {
       if (opt.warc_cdx_dedup_filename != NULL)
@@ -944,15 +971,13 @@ warc_write_request_record (char *url, char *timestamp_str, char *record_uuid, ip
   warc_write_header ("WARC-Record-ID", record_uuid);
   warc_write_ip_header (ip);
   warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
-
   warc_write_digest_headers (body, payload_offset);
-
-  bool success = warc_write_block_from_file (body)
-                 && warc_write_end_record ();
+  warc_write_block_from_file (body);
+  warc_write_end_record ();
   
   fclose (body);
 
-  return success;
+  return warc_write_ok;
 }
 
 /* Writes a response record to the CDX file.
@@ -1037,14 +1062,13 @@ warc_write_revisit_record (char *url, char *timestamp_str, char *concurrent_to_u
   warc_write_header ("Content-Type", "application/http;msgtype=response");
   warc_write_header ("WARC-Block-Digest", block_digest);
   warc_write_header ("WARC-Payload-Digest", payload_digest);
-
-  bool success = warc_write_block_from_file (body)
-                 && warc_write_end_record ();
+  warc_write_block_from_file (body);
+  warc_write_end_record ();
   
   fclose (body);
   free (block_digest);
 
-  return success;
+  return warc_write_ok;
 }
 
 /* Writes a response record to the WARC file.
@@ -1121,12 +1145,12 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_write_header ("WARC-Block-Digest", block_digest);
   warc_write_header ("WARC-Payload-Digest", payload_digest);
   warc_write_header ("Content-Type", "application/http;msgtype=response");
-  
-  bool result = warc_write_block_from_file (body)
-                && warc_write_end_record ();
+  warc_write_block_from_file (body);
+  warc_write_end_record ();
+
   fclose (body);
 
-  if (result && opt.warc_cdx_enabled)
+  if (warc_write_ok && opt.warc_cdx_enabled)
     {
       /* Add this record to the CDX. */
       warc_write_cdx_record (url, timestamp_str, mime_type, response_code, payload_digest, redirect_location, offset, warc_current_filename, response_uuid);
@@ -1137,7 +1161,7 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   if (payload_digest)
     free (payload_digest);
 
-  return result;
+  return warc_write_ok;
 }
 
 /* Writes a resource record to the WARC file.
@@ -1173,12 +1197,11 @@ warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str,
   warc_write_ip_header (ip);
   warc_write_digest_headers (body, payload_offset);
   warc_write_header ("Content-Type", content_type);
-
-  bool success = warc_write_block_from_file (body)
-                 && warc_write_end_record ();
+  warc_write_block_from_file (body);
+  warc_write_end_record ();
   
   fclose (body);
 
-  return success;
+  return warc_write_ok;
 }
 
