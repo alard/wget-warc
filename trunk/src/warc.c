@@ -925,6 +925,99 @@ warc_write_request_record (char *url, char *timestamp_str, char *record_uuid, ip
   return success;
 }
 
+/* Writes a response record to the CDX file.
+   url  is the target uri of the request/response,
+   timestamp_str  is the timestamp of the request that generated this response,
+                  (generated with warc_timestamp),
+   mime_type  is the mime type of the response body (will be printed to CDX),
+   response_code  is the HTTP response code (will be printed to CDX),
+   payload_digest  is the sha1 digest of the payload,
+   redirect_location  is the contents of the Location: header, or NULL (will be printed to CDX),
+   offset  is the position of the WARC record in the WARC file,
+   warc_filename  is the filename of the WARC,
+   response_uuid  is the uuid of the response.
+   Returns true on success, false on error. */
+static bool
+warc_write_cdx_record (char *url, char *timestamp_str, char *mime_type, int response_code, char *payload_digest, char *redirect_location, size_t offset, char *warc_filename, char *response_uuid)
+{
+  /* Transform the timestamp. */
+  char timestamp_str_cdx [15];
+  memcpy (timestamp_str_cdx     , timestamp_str     , 4); /* "YYYY" "-" */
+  memcpy (timestamp_str_cdx +  4, timestamp_str +  5, 2); /* "mm"   "-" */
+  memcpy (timestamp_str_cdx +  6, timestamp_str +  8, 2); /* "dd"   "T" */
+  memcpy (timestamp_str_cdx +  8, timestamp_str + 11, 2); /* "HH"   ":" */
+  memcpy (timestamp_str_cdx + 10, timestamp_str + 14, 2); /* "MM"   ":" */
+  memcpy (timestamp_str_cdx + 12, timestamp_str + 17, 2); /* "SS"   "Z" */
+  timestamp_str_cdx[14] = '\0';
+  
+  /* Rewrite the checksum. */
+  char *checksum;
+  if (payload_digest != NULL)
+    checksum = payload_digest + 5; /* Skip the "sha1:" */
+  else
+    checksum = "-";
+
+  if (mime_type == NULL || strlen(mime_type) == 0)
+    mime_type = "-";
+  if (redirect_location == NULL || strlen(redirect_location) == 0)
+    redirect_location = "-";
+
+  /* Print the CDX line. */
+  fprintf (warc_current_cdx_file, "%s %s %s %s %d %s %s - %ld %s %s\n", url, timestamp_str_cdx, url, mime_type, response_code, checksum, redirect_location, offset, warc_current_filename, response_uuid);
+  fflush (warc_current_cdx_file);
+
+  return true;
+}
+
+/* Writes a revisit record to the WARC file.
+   url  is the target uri of the request/response,
+   timestamp_str  is the timestamp of the request that generated this response
+                  (generated with warc_timestamp),
+   concurrent_to_uuid  is the uuid of the request for that generated this response
+                 (generated with warc_uuid_str),
+   refers_to_uuid  is the uuid of the original response
+                 (generated with warc_uuid_str),
+   payload_digest  is the sha1 digest of the payload,
+   ip  is the ip address of the server (or NULL),
+   body  is a pointer to a file containing the response headers (without payload).
+   Calling this function will close body.
+   Returns true on success, false on error. */
+static bool
+warc_write_revisit_record (char *url, char *timestamp_str, char *concurrent_to_uuid, char *payload_digest, char *refers_to, ip_address *ip, FILE *body)
+{
+  char revisit_uuid [48];
+  warc_uuid_str (revisit_uuid);
+
+  char *block_digest = NULL;
+  char sha1_res_block[SHA1_DIGEST_SIZE];
+  sha1_stream (body, sha1_res_block);
+  block_digest = warc_base32_sha1_digest (sha1_res_block);
+
+  warc_write_start_record ();
+  warc_write_header ("WARC-Type", "revisit");
+  warc_write_header ("WARC-Profile", "http://netpreserve.org/warc/1.0/revisit/identical-payload-digest");
+  warc_write_header ("WARC-Refers-To", refers_to);
+  warc_write_header ("WARC-Truncated", "length");
+  warc_write_header ("WARC-Target-URI", url);
+  warc_write_date_header (timestamp_str);
+  warc_write_header ("WARC-Record-ID", revisit_uuid);
+  warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
+  if (ip)
+    warc_write_header ("WARC-IP-Address", print_address (ip));
+  warc_write_header ("Content-Type", "application/http;msgtype=response");
+  warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
+  warc_write_header ("WARC-Block-Digest", block_digest);
+  warc_write_header ("WARC-Payload-Digest", payload_digest);
+
+  bool success = warc_write_block_from_file (body)
+                 && warc_write_end_record ();
+  
+  fclose (body);
+  free (block_digest);
+
+  return success;
+}
+
 /* Writes a response record to the WARC file.
    url  is the target uri of the request/response,
    timestamp_str  is the timestamp of the request that generated this response
@@ -941,25 +1034,10 @@ warc_write_request_record (char *url, char *timestamp_str, char *record_uuid, ip
 bool
 warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_uuid, ip_address *ip, FILE *body, long int payload_offset, char *mime_type, int response_code, char *redirect_location)
 {
-  char *digest = NULL;
+  char *block_digest = NULL;
+  char *payload_digest = NULL;
   char sha1_res_block[SHA1_DIGEST_SIZE];
   char sha1_res_payload[SHA1_DIGEST_SIZE];
-
-  char response_uuid [48];
-  warc_uuid_str (response_uuid);
-
-  fseek (warc_current_file, 0L, SEEK_END);
-  size_t offset = ftell (warc_current_file);
-
-  warc_write_start_record ();
-  warc_write_header ("WARC-Target-URI", url);
-  warc_write_date_header (timestamp_str);
-  warc_write_header ("WARC-Record-ID", response_uuid);
-  warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
-  if (ip)
-    warc_write_header ("WARC-IP-Address", print_address (ip));
-  warc_write_header ("Content-Type", "application/http;msgtype=response");
-  warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
 
   if (opt.warc_digests_enabled)
     {
@@ -981,12 +1059,6 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
                   /* Found an existing record. */
                   logprintf (LOG_VERBOSE, _("Found exact match in CDX file. Saving revisit record to WARC.\n"));
 
-                  /* Make the record a revisit record. */
-                  warc_write_header ("WARC-Type", "revisit");
-                  warc_write_header ("WARC-Profile", "http://netpreserve.org/warc/1.0/revisit/identical-payload-digest");
-                  warc_write_header ("WARC-Refers-To", rec_existing->uuid);
-                  warc_write_header ("WARC-Truncated", "length");
-
                   /* Remove the payload from the file. */
                   if (payload_offset > 0)
                     {
@@ -994,38 +1066,42 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
                         return false;
                     }
 
-                  /* Digests: payload refers to the old payload, but the block
-                     digest must be calculated based on the truncated block. */
+                  /* Send the original payload digest. */
+                  payload_digest = warc_base32_sha1_digest (sha1_res_payload);
+                  bool result = warc_write_revisit_record (url, timestamp_str, concurrent_to_uuid, payload_digest, rec_existing->uuid, ip, body);
+                  free (payload_digest);
 
-                  digest = warc_base32_sha1_digest (sha1_res_payload);
-                  warc_write_header ("WARC-Payload-Digest", digest);
-                  free (digest);
-
-                  sha1_stream (body, sha1_res_block);
-
-                  digest = warc_base32_sha1_digest (sha1_res_block);
-                  warc_write_header ("WARC-Block-Digest", digest);
-                  free (digest);
-
-                  bool result = warc_write_block_from_file (body)
-                                && warc_write_end_record ();
-
-                  fclose (body);
                   return result;
                 }
             }
+
+          block_digest = warc_base32_sha1_digest (sha1_res_block);
+          payload_digest = warc_base32_sha1_digest (sha1_res_payload);
         }
-
-      digest = warc_base32_sha1_digest (sha1_res_block);
-      warc_write_header ("WARC-Block-Digest", digest);
-      free (digest);
-
-      digest = warc_base32_sha1_digest (sha1_res_payload);
-      warc_write_header ("WARC-Payload-Digest", digest);
     }
 
   /* Not a revisit, just store the record. */
+
+  char response_uuid [48];
+  warc_uuid_str (response_uuid);
+
+  fseek (warc_current_file, 0L, SEEK_END);
+  size_t offset = ftell (warc_current_file);
+
+  warc_write_start_record ();
   warc_write_header ("WARC-Type", "response");
+  warc_write_header ("WARC-Target-URI", url);
+  warc_write_date_header (timestamp_str);
+  warc_write_header ("WARC-Record-ID", response_uuid);
+  warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
+  if (ip)
+    warc_write_header ("WARC-IP-Address", print_address (ip));
+  warc_write_header ("Content-Type", "application/http;msgtype=response");
+  warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
+  if (block_digest != NULL)
+    warc_write_header ("WARC-Block-Digest", block_digest);
+  if (payload_digest != NULL)
+    warc_write_header ("WARC-Payload-Digest", payload_digest);
   
   bool result = warc_write_block_from_file (body)
                 && warc_write_end_record ();
@@ -1034,35 +1110,13 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   if (result && opt.warc_cdx_enabled)
     {
       /* Add this record to the CDX. */
-      /* Transform the timestamp. */
-      char timestamp_str_cdx [15];
-      memcpy (timestamp_str_cdx     , timestamp_str     , 4); /* "YYYY" "-" */
-      memcpy (timestamp_str_cdx +  4, timestamp_str +  5, 2); /* "mm"   "-" */
-      memcpy (timestamp_str_cdx +  6, timestamp_str +  8, 2); /* "dd"   "T" */
-      memcpy (timestamp_str_cdx +  8, timestamp_str + 11, 2); /* "HH"   ":" */
-      memcpy (timestamp_str_cdx + 10, timestamp_str + 14, 2); /* "MM"   ":" */
-      memcpy (timestamp_str_cdx + 12, timestamp_str + 17, 2); /* "SS"   "Z" */
-      timestamp_str_cdx[14] = '\0';
-      
-      /* Rewrite the checksum. */
-      char *checksum;
-      if (opt.warc_digests_enabled)
-        checksum = digest + 5; /* Skip the "sha1:" */
-      else
-        checksum = "-";
-
-      if (mime_type == NULL || strlen(mime_type) == 0)
-        mime_type = "-";
-      if (redirect_location == NULL || strlen(redirect_location) == 0)
-        redirect_location = "-";
-
-      /* Print the CDX line. */
-      fprintf (warc_current_cdx_file, "%s %s %s %s %d %s %s - %ld %s %s\n", url, timestamp_str_cdx, url, mime_type, response_code, checksum, redirect_location, offset, warc_current_filename, response_uuid);
-      fflush (warc_current_cdx_file);
+      warc_write_cdx_record (url, timestamp_str, mime_type, response_code, payload_digest, redirect_location, offset, warc_current_filename, response_uuid);
     }
 
-  if (opt.warc_digests_enabled)
-    free (digest);
+  if (block_digest)
+    free (block_digest);
+  if (payload_digest)
+    free (payload_digest);
 
   return result;
 }
