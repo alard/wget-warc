@@ -40,8 +40,14 @@ static FILE *warc_current_file;
 /* The gzip stream for the current WARC file
    (or NULL, if WARC or gzip is disabled). */
 static gzFile *warc_current_gzfile;
+
+/* The offset of the current gzip record in the WARC file. */
 static size_t warc_current_gzfile_offset;
+
+/* The uncompressed size (so far) of the current record. */
 static size_t warc_current_gzfile_uncompressed_size;
+
+/* This is true until a warc_write_* method fails. */
 static bool warc_write_ok;
 
 /* The current CDX file (or NULL, if CDX is disabled). */
@@ -88,6 +94,9 @@ warc_cmp_sha1_digest (const void *digest1, const void *digest2)
 
 
 
+/* Writes SIZE bytes from BUFFER to the current WARC file,
+   through gzwrite if compression is enabled.
+   Returns the number of uncompressed bytes written.  */
 static size_t
 warc_write_buffer (const char *buffer, size_t size)
 {
@@ -100,6 +109,9 @@ warc_write_buffer (const char *buffer, size_t size)
     return fwrite (buffer, 1, size, warc_current_file);
 }
 
+/* Writes STR to the current WARC file.
+   Returns false and set warc_write_ok to false if there
+   is an error.  */
 static bool
 warc_write_string (const char *str)
 {
@@ -119,6 +131,15 @@ warc_write_string (const char *str)
 #define FLG_FEXTRA          0x04
 #define OFF_FLG             3
 
+/* Starts a new WARC record.  Writes the version header.
+   If opt.warc_maxsize is set and the current file is becoming
+   too large, this will open a new WARC file.
+
+   If compression is enabled, this will start a new
+   gzip stream in the current WARC file.
+
+   Returns false and set warc_write_ok to false if there
+   is an error.  */
 static bool
 warc_write_start_record ()
 {
@@ -132,10 +153,17 @@ warc_write_start_record ()
   /* Start a GZIP stream, if required. */
   if (opt.warc_compression_enabled)
     {
+      /* Record the starting offset of the new record. */
       warc_current_gzfile_offset = ftell (warc_current_file);
+
+      /* Reserve space for the extra GZIP header field.
+         In warc_write_end_record we will fill this space
+         with information about the uncompressed and
+         compressed size of the record. */
       fprintf (warc_current_file, "XXXXXXXXXXXX");
       fflush (warc_current_file);
 
+      /* Start a new GZIP stream. */
       warc_current_gzfile = gzdopen (dup (fileno (warc_current_file)), "wb+9");
       warc_current_gzfile_uncompressed_size = 0;
 
@@ -151,6 +179,9 @@ warc_write_start_record ()
   return warc_write_ok;
 }
 
+/* Writes a WARC header to the current WARC record.
+   This method may be run after warc_write_start_record and
+   before warc_write_block_from_file.  */
 static bool
 warc_write_header (const char *name, const char *value)
 {
@@ -164,9 +195,14 @@ warc_write_header (const char *name, const char *value)
   return warc_write_ok;
 }
 
+/* Copies the contents of DATA_IN to the WARC record.
+   Adds a Content-Length header to the WARC record.
+   Run this method after warc_write_header,
+   then run warc_write_end_record. */
 static bool
 warc_write_block_from_file (FILE *data_in)
 {
+  /* Add the Content-Length header. */
   char *content_length;
   fseek (data_in, 0L, SEEK_END);
   if (! asprintf (&content_length, "%ld", ftell (data_in)))
@@ -177,11 +213,13 @@ warc_write_block_from_file (FILE *data_in)
   warc_write_header ("Content-Length", content_length);
   free (content_length);
 
+  /* End of the WARC header section. */
   warc_write_string ("\r\n");
 
   if (fseek (data_in, 0L, SEEK_SET) != 0)
     warc_write_ok = false;
 
+  /* Copy the data in the file to the WARC record. */
   char buffer[BUFSIZ];
   size_t s;
   while (warc_write_ok && (s = fread (buffer, 1, BUFSIZ, data_in)) > 0)
@@ -193,6 +231,12 @@ warc_write_block_from_file (FILE *data_in)
   return warc_write_ok;
 }
 
+/* Run this method to close the current WARC record.
+
+   If compression is enabled, this method closes the
+   current GZIP stream and fills the extra GZIP header
+   with the uncompressed and compressed length of the
+   record. */
 static bool
 warc_write_end_record ()
 {
@@ -210,13 +254,30 @@ warc_write_end_record ()
       fflush (warc_current_file);
       fseek (warc_current_file, 0, SEEK_END);
 
+      /* The WARC standard suggests that we add 'skip length' data in the
+         extra header field of the GZIP stream.
+         
+         In warc_write_start_record we reserved space for this extra header.
+         This extra space starts at warc_current_gzfile_offset and fills
+         EXTRA_GZIP_HEADER_SIZE bytes.  The static GZIP header starts at
+         warc_current_gzfile_offset + EXTRA_GZIP_HEADER_SIZE.
+         
+         We need to do three things:
+         1. Move the static GZIP header to warc_current_gzfile_offset;
+         2. Set the FEXTRA flag in the GZIP header;
+         3. Write the extra GZIP header after the static header, that is,
+            starting at warc_current_gzfile_offset + GZIP_STATIC_HEADER_SIZE.
+      */
+
+      /* Calculate the uncompressed and compressed sizes. */
       size_t current_offset = ftell (warc_current_file);
       size_t uncompressed_size = current_offset - warc_current_gzfile_offset;
       size_t compressed_size = warc_current_gzfile_uncompressed_size;
 
-      /* Go back to the header. */
+      /* Go back to the static GZIP header. */
       fseek (warc_current_file, warc_current_gzfile_offset + EXTRA_GZIP_HEADER_SIZE, SEEK_SET);
 
+      /* Read the header. */
       char static_header[GZIP_STATIC_HEADER_SIZE];
       size_t result = fread (static_header, 1, GZIP_STATIC_HEADER_SIZE, warc_current_file);
       if (result != GZIP_STATIC_HEADER_SIZE)
@@ -225,17 +286,18 @@ warc_write_end_record ()
           return false;
         }
 
+      /* Set the FEXTRA flag in the flags byte of the header. */
       static_header[OFF_FLG] = static_header[OFF_FLG] | FLG_FEXTRA;
 
+      /* Write the header back to the file, but starting at warc_current_gzfile_offset. */
       fseek (warc_current_file, warc_current_gzfile_offset, SEEK_SET);
       fwrite (static_header, 1, GZIP_STATIC_HEADER_SIZE, warc_current_file);
-      fseek (warc_current_file, warc_current_gzfile_offset + GZIP_STATIC_HEADER_SIZE, SEEK_SET);
 
-      /* Extra GZIP header. */
+      /* Prepare the extra GZIP header. */
       char extra_header[EXTRA_GZIP_HEADER_SIZE];
       /* XLEN, the length of the extra header fields.  */
-      extra_header[0]  = (GZIP_STATIC_HEADER_SIZE & 255);
-      extra_header[1]  = (GZIP_STATIC_HEADER_SIZE >> 8) & 255;
+      extra_header[0]  = ((EXTRA_GZIP_HEADER_SIZE - 2) & 255);
+      extra_header[1]  = ((EXTRA_GZIP_HEADER_SIZE - 2) >> 8) & 255;
       /* The extra header field identifier for the WARC skip length. */
       extra_header[2]  = 's';
       extra_header[3]  = 'l';
@@ -250,10 +312,13 @@ warc_write_end_record ()
       extra_header[10] = (compressed_size >> 16) & 255;
       extra_header[11] = (compressed_size >> 24) & 255;
 
+      /* Write the extra header after the static header. */
+      fseek (warc_current_file, warc_current_gzfile_offset + GZIP_STATIC_HEADER_SIZE, SEEK_SET);
       fwrite (extra_header, 1, EXTRA_GZIP_HEADER_SIZE, warc_current_file);
 
+      /* Done, move back to the end of the file. */
       fflush (warc_current_file);
-      fseek (warc_current_file, current_offset, SEEK_SET);
+      fseek (warc_current_file, 0, SEEK_END);
     }
 
   return warc_write_ok;
