@@ -250,6 +250,18 @@ warc_write_date_header (char *timestamp)
   return warc_write_header ("WARC-Date", timestamp);
 }
 
+/* Writes the WARC-IP-Address header for the given IP to
+   the current WARC record.  If IP is NULL, no header will
+   be written.  */
+static bool
+warc_write_ip_header (ip_address *ip)
+{
+  if (ip != NULL)
+    return warc_write_header ("WARC-IP-Address", print_address (ip));
+  else
+    return true;
+}
+
 
 /* warc_sha1_stream_with_payload is a modified copy of sha1_stream
    from gnulib/sha1.c.  This version calculates two digests in one go.
@@ -930,8 +942,7 @@ warc_write_request_record (char *url, char *timestamp_str, char *record_uuid, ip
   warc_write_header ("Content-Type", "application/http;msgtype=request");
   warc_write_date_header (timestamp_str);
   warc_write_header ("WARC-Record-ID", record_uuid);
-  if (ip)
-    warc_write_header ("WARC-IP-Address", print_address (ip));
+  warc_write_ip_header (ip);
   warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
 
   warc_write_digest_headers (body, payload_offset);
@@ -1022,8 +1033,7 @@ warc_write_revisit_record (char *url, char *timestamp_str, char *concurrent_to_u
   warc_write_header ("WARC-Truncated", "length");
   warc_write_header ("WARC-Target-URI", url);
   warc_write_date_header (timestamp_str);
-  if (ip)
-    warc_write_header ("WARC-IP-Address", print_address (ip));
+  warc_write_ip_header (ip);
   warc_write_header ("Content-Type", "application/http;msgtype=response");
   warc_write_header ("WARC-Block-Digest", block_digest);
   warc_write_header ("WARC-Payload-Digest", payload_digest);
@@ -1107,8 +1117,7 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
   warc_write_header ("WARC-Target-URI", url);
   warc_write_date_header (timestamp_str);
-  if (ip)
-    warc_write_header ("WARC-IP-Address", print_address (ip));
+  warc_write_ip_header (ip);
   warc_write_header ("WARC-Block-Digest", block_digest);
   warc_write_header ("WARC-Payload-Digest", payload_digest);
   warc_write_header ("Content-Type", "application/http;msgtype=response");
@@ -1161,8 +1170,7 @@ warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str,
   warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
   warc_write_header ("WARC-Target-URI", url);
   warc_write_date_header (timestamp_str);
-  if (ip)
-    warc_write_header ("WARC-IP-Address", print_address (ip));
+  warc_write_ip_header (ip);
   warc_write_digest_headers (body, payload_offset);
   warc_write_header ("Content-Type", content_type);
 
