@@ -753,6 +753,25 @@ warc_load_cdx_dedup_file ()
   return true;
 }
 
+/* Returns the existing duplicate CDX record for the given url and payload
+   digest.  Returns NULL if the url is not found or if the payload digest
+   does not match, or if CDX deduplication is disabled. */
+static struct warc_cdx_record *
+warc_find_duplicate_cdx_record (char *url, char *sha1_digest_payload)
+{
+  if (warc_cdx_dedup_table == NULL)
+    return NULL;
+
+  char *key;
+  struct warc_cdx_record *rec_existing;
+  hash_table_get_pair (warc_cdx_dedup_table, sha1_digest_payload, &key, &rec_existing);
+
+  if (rec_existing != NULL && strcmp (rec_existing->url, url) == 0)
+    return rec_existing;
+  else
+    return NULL;
+}
+
 /* Initializes the WARC writer (if opt.warc_filename is set).
    This should be called before any WARC record is written. */
 void
@@ -1047,32 +1066,25 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
         {
           /* Decide (based on url + payload digest) if we have seen this
              data before. */
-          if (warc_cdx_dedup_table != NULL)
+          struct warc_cdx_record *rec_existing = warc_find_duplicate_cdx_record (url, sha1_res_payload);
+          if (rec_existing != NULL)
             {
-              /* Find a CDX record with this payload digest. */
-              char *key;
-              struct warc_cdx_record *rec_existing;
-              hash_table_get_pair (warc_cdx_dedup_table, sha1_res_payload, &key, &rec_existing);
+              /* Found an existing record. */
+              logprintf (LOG_VERBOSE, _("Found exact match in CDX file. Saving revisit record to WARC.\n"));
 
-              if (rec_existing != NULL && !strcmp (rec_existing->url, url))
+              /* Remove the payload from the file. */
+              if (payload_offset > 0)
                 {
-                  /* Found an existing record. */
-                  logprintf (LOG_VERBOSE, _("Found exact match in CDX file. Saving revisit record to WARC.\n"));
-
-                  /* Remove the payload from the file. */
-                  if (payload_offset > 0)
-                    {
-                      if (ftruncate (fileno (body), payload_offset) == -1)
-                        return false;
-                    }
-
-                  /* Send the original payload digest. */
-                  payload_digest = warc_base32_sha1_digest (sha1_res_payload);
-                  bool result = warc_write_revisit_record (url, timestamp_str, concurrent_to_uuid, payload_digest, rec_existing->uuid, ip, body);
-                  free (payload_digest);
-
-                  return result;
+                  if (ftruncate (fileno (body), payload_offset) == -1)
+                    return false;
                 }
+
+              /* Send the original payload digest. */
+              payload_digest = warc_base32_sha1_digest (sha1_res_payload);
+              bool result = warc_write_revisit_record (url, timestamp_str, concurrent_to_uuid, payload_digest, rec_existing->uuid, ip, body);
+              free (payload_digest);
+
+              return result;
             }
 
           block_digest = warc_base32_sha1_digest (sha1_res_block);
