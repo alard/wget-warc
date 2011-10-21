@@ -393,7 +393,7 @@ warc_base32_sha1_digest (char *sha1_digest)
    will also calculate the payload digest of the payload starting at the
    provided offset.  */
 static void
-warc_calc_digests (FILE *file, long payload_offset)
+warc_write_digest_headers (FILE *file, long payload_offset)
 {
   if (opt.warc_digests_enabled)
     {
@@ -494,7 +494,7 @@ warc_write_warcinfo_record (char *filename)
     }
   fprintf(warc_tmp, "\r\n");
 
-  warc_calc_digests (warc_tmp, -1);
+  warc_write_digest_headers (warc_tmp, -1);
   bool success = warc_write_block_from_file (warc_tmp)
                  && warc_write_end_record ();
 
@@ -934,7 +934,7 @@ warc_write_request_record (char *url, char *timestamp_str, char *record_uuid, ip
     warc_write_header ("WARC-IP-Address", print_address (ip));
   warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
 
-  warc_calc_digests (body, payload_offset);
+  warc_write_digest_headers (body, payload_offset);
 
   bool success = warc_write_block_from_file (body)
                  && warc_write_end_record ();
@@ -1163,7 +1163,7 @@ warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str,
   warc_write_date_header (timestamp_str);
   if (ip)
     warc_write_header ("WARC-IP-Address", print_address (ip));
-  warc_calc_digests (body, payload_offset);
+  warc_write_digest_headers (body, payload_offset);
   warc_write_header ("Content-Type", content_type);
 
   bool success = warc_write_block_from_file (body)
