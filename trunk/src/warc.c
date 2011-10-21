@@ -637,12 +637,119 @@ warc_start_cdx_file ()
   return true;
 }
 
+#define CDX_FIELDSEP " \t\r\n"
+
+/* Parse the CDX header and find the field numbers of the original url,
+   checksum and record ID fields. */
+static bool
+warc_parse_cdx_header (char *lineptr, int *field_num_original_url, int *field_num_checksum, int *field_num_record_id)
+{
+  *field_num_original_url = -1;
+  *field_num_checksum = -1;
+  *field_num_record_id = -1;
+
+  char *token;
+  char *save_ptr;
+  token = strtok_r (lineptr, CDX_FIELDSEP, &save_ptr);
+  
+  if (token != NULL && strcmp (token, "CDX") == 0)
+    {
+      int field_num = 0;
+      while (token != NULL)
+        {
+          token = strtok_r (NULL, CDX_FIELDSEP, &save_ptr);
+          if (token != NULL)
+            {
+              switch (token[0])
+                {
+                case 'a':
+                  *field_num_original_url = field_num;
+                  break;
+                case 'k':
+                  *field_num_checksum = field_num;
+                  break;
+                case 'u':
+                  *field_num_record_id = field_num;
+                  break;
+                }
+            }
+          field_num++;
+        }
+    }
+
+  return *field_num_original_url != -1
+         && *field_num_checksum != -1
+         && *field_num_record_id != -1;
+}
+
+/* Parse the CDX record and add it to the warc_cdx_dedup_table hash table. */
+static void
+warc_process_cdx_line (char *lineptr, int field_num_original_url, int field_num_checksum, int field_num_record_id)
+{
+  char *original_url = NULL;
+  char *checksum = NULL;
+  char *record_id = NULL;
+
+  char *token;
+  char *save_ptr;
+  token = strtok_r (lineptr, CDX_FIELDSEP, &save_ptr);
+
+  /* Read this line to get the fields we need. */
+  int field_num = 0;
+  while (token != NULL)
+    {
+      char **val;
+      if (field_num == field_num_original_url)
+        val = &original_url;
+      else if (field_num == field_num_checksum)
+        val = &checksum;
+      else if (field_num == field_num_record_id)
+        val = &record_id;
+      else
+        val = NULL;
+
+      if (val != NULL)
+        *val = strdup (token);
+
+      token = strtok_r (NULL, CDX_FIELDSEP, &save_ptr);
+      field_num++;
+    }
+
+  if (original_url != NULL && checksum != NULL && record_id != NULL)
+    {
+      /* For some extra efficiency, we decode the base32 encoded
+         checksum value.  This should produce exactly SHA1_DIGEST_SIZE
+         bytes.  */
+      size_t checksum_l;
+      char * checksum_v;
+      base32_decode_alloc (checksum, strlen (checksum), &checksum_v, &checksum_l);
+      free (checksum);
+
+      if (checksum_v != NULL && checksum_l == SHA1_DIGEST_SIZE)
+        {
+          /* This is a valid line with a valid checksum. */
+          struct warc_cdx_record * rec = malloc (sizeof (struct warc_cdx_record));
+          rec->url = original_url;
+          rec->uuid = record_id;
+          memcpy (rec->digest, checksum_v, SHA1_DIGEST_SIZE);
+          hash_table_put (warc_cdx_dedup_table, rec->digest, rec);
+          free (checksum_v);
+        }
+      else
+        {
+          free (original_url);
+          if (checksum_v != NULL)
+            free (checksum_v);
+          free (record_id);
+        }
+    }
+}
+
 /* Loads the CDX file from opt.warc_cdx_dedup_filename and fills
    the warc_cdx_dedup_table. */
 bool
 warc_load_cdx_dedup_file ()
 {
-#define CDX_FIELDSEP " \t\r\n"
   FILE *f = fopen (opt.warc_cdx_dedup_filename, "r");
   if (f == NULL)
     return false;
@@ -662,37 +769,7 @@ warc_load_cdx_dedup_file ()
      'u' (the WARC record id). */
   line_length = getline (&lineptr, &n, f);
   if (line_length != -1)
-    {
-      /* Parse the CDX header. */
-      char *token;
-      char *save_ptr;
-      token = strtok_r (lineptr, CDX_FIELDSEP, &save_ptr);
-      
-      if (token != NULL && strcmp (token, "CDX") == 0)
-        {
-          int field_num = 0;
-          while (token != NULL)
-            {
-              token = strtok_r (NULL, CDX_FIELDSEP, &save_ptr);
-              if (token != NULL)
-                {
-                  switch (token[0])
-                    {
-                    case 'a':
-                      field_num_original_url = field_num;
-                      break;
-                    case 'k':
-                      field_num_checksum = field_num;
-                      break;
-                    case 'u':
-                      field_num_record_id = field_num;
-                      break;
-                    }
-                }
-              field_num++;
-            }
-        }
-    }
+    warc_parse_cdx_header (lineptr, &field_num_original_url, &field_num_checksum, &field_num_record_id);
 
   /* If the file contains all three fields, read the complete file. */
   if (field_num_original_url == -1
@@ -715,65 +792,8 @@ warc_load_cdx_dedup_file ()
         {
           line_length = getline (&lineptr, &n, f);
           if (line_length != -1)
-            {
-              char *original_url = NULL;
-              char *checksum = NULL;
-              char *record_id = NULL;
+            warc_process_cdx_line (lineptr, field_num_original_url, field_num_checksum, field_num_record_id);
 
-              char *token;
-              char *save_ptr;
-              token = strtok_r (lineptr, CDX_FIELDSEP, &save_ptr);
-
-              /* Read this line to get the fields we need. */
-              int field_num = 0;
-              while (token != NULL)
-                {
-                  char **val;
-                  if (field_num == field_num_original_url)
-                    val = &original_url;
-                  else if (field_num == field_num_checksum)
-                    val = &checksum;
-                  else if (field_num == field_num_record_id)
-                    val = &record_id;
-                  else
-                    val = NULL;
-
-                  if (val != NULL)
-                    *val = strdup (token);
-
-                  token = strtok_r (NULL, CDX_FIELDSEP, &save_ptr);
-                  field_num++;
-                }
-
-              if (original_url != NULL && checksum != NULL && record_id != NULL)
-                {
-                  /* For some extra efficiency, we decode the base32 encoded
-                     checksum value.  This should produce exactly SHA1_DIGEST_SIZE
-                     bytes.  */
-                  size_t checksum_l;
-                  char * checksum_v;
-                  base32_decode_alloc (checksum, strlen (checksum), &checksum_v, &checksum_l);
-                  free (checksum);
-
-                  if (checksum_v != NULL && checksum_l == SHA1_DIGEST_SIZE)
-                    {
-                      /* This is a valid line with a valid checksum. */
-                      struct warc_cdx_record * rec = malloc (sizeof (struct warc_cdx_record));
-                      rec->url = original_url;
-                      rec->uuid = record_id;
-                      memcpy (rec->digest, checksum_v, SHA1_DIGEST_SIZE);
-                      hash_table_put (warc_cdx_dedup_table, rec->digest, rec);
-                      free (checksum_v);
-                    }
-                  else
-                    {
-                      free (original_url);
-                      if (checksum_v != NULL)
-                        free (checksum_v);
-                      free (record_id);
-                    }
-                }
-            }
         }
       while (line_length != -1);
 
@@ -785,10 +805,10 @@ warc_load_cdx_dedup_file ()
     }
 
   fclose (f);
-#undef CDX_FIELDSEP
 
   return true;
 }
+#undef CDX_FIELDSEP
 
 /* Returns the existing duplicate CDX record for the given url and payload
    digest.  Returns NULL if the url is not found or if the payload digest
