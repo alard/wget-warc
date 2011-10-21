@@ -1014,17 +1014,17 @@ warc_write_revisit_record (char *url, char *timestamp_str, char *concurrent_to_u
 
   warc_write_start_record ();
   warc_write_header ("WARC-Type", "revisit");
-  warc_write_header ("WARC-Profile", "http://netpreserve.org/warc/1.0/revisit/identical-payload-digest");
+  warc_write_header ("WARC-Record-ID", revisit_uuid);
+  warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
+  warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
   warc_write_header ("WARC-Refers-To", refers_to);
+  warc_write_header ("WARC-Profile", "http://netpreserve.org/warc/1.0/revisit/identical-payload-digest");
   warc_write_header ("WARC-Truncated", "length");
   warc_write_header ("WARC-Target-URI", url);
   warc_write_date_header (timestamp_str);
-  warc_write_header ("WARC-Record-ID", revisit_uuid);
-  warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
   if (ip)
     warc_write_header ("WARC-IP-Address", print_address (ip));
   warc_write_header ("Content-Type", "application/http;msgtype=response");
-  warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
   warc_write_header ("WARC-Block-Digest", block_digest);
   warc_write_header ("WARC-Payload-Digest", payload_digest);
 
@@ -1102,18 +1102,16 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
 
   warc_write_start_record ();
   warc_write_header ("WARC-Type", "response");
+  warc_write_header ("WARC-Record-ID", response_uuid);
+  warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
+  warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
   warc_write_header ("WARC-Target-URI", url);
   warc_write_date_header (timestamp_str);
-  warc_write_header ("WARC-Record-ID", response_uuid);
-  warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
   if (ip)
     warc_write_header ("WARC-IP-Address", print_address (ip));
+  warc_write_header ("WARC-Block-Digest", block_digest);
+  warc_write_header ("WARC-Payload-Digest", payload_digest);
   warc_write_header ("Content-Type", "application/http;msgtype=response");
-  warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
-  if (block_digest != NULL)
-    warc_write_header ("WARC-Block-Digest", block_digest);
-  if (payload_digest != NULL)
-    warc_write_header ("WARC-Payload-Digest", payload_digest);
   
   bool result = warc_write_block_from_file (body)
                 && warc_write_end_record ();
@@ -1153,20 +1151,20 @@ warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str,
       warc_uuid_str (resource_uuid);
     }
 
-  warc_write_start_record ();
-  warc_write_header ("WARC-Type", "resource");
   if (content_type == NULL)
     content_type = "application/octet-stream";
-  warc_write_header ("Content-Type", content_type);
-  warc_write_header ("WARC-Target-URI", url);
-  warc_write_date_header (timestamp_str);
+
+  warc_write_start_record ();
+  warc_write_header ("WARC-Type", "resource");
   warc_write_header ("WARC-Record-ID", resource_uuid);
   warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
   warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
+  warc_write_header ("WARC-Target-URI", url);
+  warc_write_date_header (timestamp_str);
   if (ip)
     warc_write_header ("WARC-IP-Address", print_address (ip));
-
   warc_calc_digests (body, payload_offset);
+  warc_write_header ("Content-Type", content_type);
 
   bool success = warc_write_block_from_file (body)
                  && warc_write_end_record ();
