@@ -167,6 +167,13 @@ warc_write_block_from_file (FILE *data_in)
       if (warc_write_buffer (buffer, s) < s)
         return false;
     }
+
+  return true;
+}
+
+static bool
+warc_write_end_record ()
+{
   bool success = warc_write_buffer ("\r\n\r\n", 4);
 
   /* We start a new gzip stream for each record.  */
@@ -472,7 +479,8 @@ warc_write_warcinfo_record (char *filename)
   fprintf(warc_tmp, "\r\n");
 
   warc_calc_digests (warc_tmp, -1);
-  bool success = warc_write_block_from_file (warc_tmp);
+  bool success = warc_write_block_from_file (warc_tmp)
+                 && warc_write_end_record ();
 
   if (! success)
     {
@@ -902,7 +910,8 @@ warc_write_request_record (char *url, char *timestamp_str, char *record_uuid, ip
 
   warc_calc_digests (body, payload_offset);
 
-  bool success = warc_write_block_from_file (body);
+  bool success = warc_write_block_from_file (body)
+                 && warc_write_end_record ();
   
   fclose (body);
 
@@ -1000,7 +1009,8 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
                   warc_write_header ("WARC-Block-Digest", digest);
                   free (digest);
 
-                  bool result = warc_write_block_from_file (body);
+                  bool result = warc_write_block_from_file (body)
+                                && warc_write_end_record ();
 
                   fclose (body);
                   return result;
@@ -1019,7 +1029,8 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
   /* Not a revisit, just store the record. */
   warc_write_header ("WARC-Type", "response");
   
-  bool result = warc_write_block_from_file (body);
+  bool result = warc_write_block_from_file (body)
+                && warc_write_end_record ();
   fclose (body);
 
   if (result && opt.warc_cdx_enabled)
@@ -1102,7 +1113,8 @@ warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str,
 
   warc_calc_digests (body, payload_offset);
 
-  bool success = warc_write_block_from_file (body);
+  bool success = warc_write_block_from_file (body)
+                 && warc_write_end_record ();
   
   fclose (body);
 
