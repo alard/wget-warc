@@ -235,6 +235,22 @@ warc_write_end_record ()
 }
 
 
+/* Writes the WARC-Date header for the given timestamp to
+   the current WARC record.
+   If timestamp is NULL, the current time will be used.  */
+static bool
+warc_write_date_header (char *timestamp)
+{
+  if (timestamp == NULL)
+    {
+      char current_timestamp[21];
+      warc_timestamp (current_timestamp);
+      timestamp = current_timestamp;
+    }
+  return warc_write_header ("WARC-Date", timestamp);
+}
+
+
 /* warc_sha1_stream_with_payload is a modified copy of sha1_stream
    from gnulib/sha1.c.  This version calculates two digests in one go.
 
@@ -893,16 +909,7 @@ warc_write_request_record (char *url, char *timestamp_str, char *record_uuid, ip
   warc_write_header ("WARC-Type", "request");
   warc_write_header ("WARC-Target-URI", url);
   warc_write_header ("Content-Type", "application/http;msgtype=request");
-  if (timestamp_str == NULL)
-    {
-      char timestamp[21];
-      warc_timestamp (timestamp);
-      warc_write_header ("WARC-Date", timestamp);
-    }
-  else
-    {
-      warc_write_header ("WARC-Date", timestamp_str);
-    }
+  warc_write_date_header (timestamp_str);
   warc_write_header ("WARC-Record-ID", record_uuid);
   if (ip)
     warc_write_header ("WARC-IP-Address", print_address (ip));
@@ -946,16 +953,7 @@ warc_write_response_record (char *url, char *timestamp_str, char *concurrent_to_
 
   warc_write_start_record ();
   warc_write_header ("WARC-Target-URI", url);
-  if (timestamp_str == NULL)
-    {
-      char timestamp[21];
-      warc_timestamp (timestamp);
-      warc_write_header ("WARC-Date", timestamp);
-    }
-  else
-    {
-      warc_write_header ("WARC-Date", timestamp_str);
-    }
+  warc_write_date_header (timestamp_str);
   warc_write_header ("WARC-Record-ID", response_uuid);
   warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
   if (ip)
@@ -1095,16 +1093,7 @@ warc_write_resource_record (char *resource_uuid, char *url, char *timestamp_str,
     content_type = "application/octet-stream";
   warc_write_header ("Content-Type", content_type);
   warc_write_header ("WARC-Target-URI", url);
-  if (timestamp_str == NULL)
-    {
-      char timestamp[21];
-      warc_timestamp (timestamp);
-      warc_write_header ("WARC-Date", timestamp);
-    }
-  else
-    {
-      warc_write_header ("WARC-Date", timestamp_str);
-    }
+  warc_write_date_header (timestamp_str);
   warc_write_header ("WARC-Record-ID", resource_uuid);
   warc_write_header ("WARC-Warcinfo-ID", warc_current_warcinfo_uuid_str);
   warc_write_header ("WARC-Concurrent-To", concurrent_to_uuid);
