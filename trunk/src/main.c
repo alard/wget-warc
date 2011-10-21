@@ -1253,6 +1253,12 @@ for details.\n\n"));
                      "timestamping will be disabled.\n"));
           opt.timestamping = false;
         }
+      if (opt.spider)
+        {
+          fprintf (stderr,
+                   _("WARC output does not work with --spider.\n"));
+          exit (1);
+        }
       if (opt.always_rest)
         {
           fprintf (stderr,
