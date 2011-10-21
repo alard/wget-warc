@@ -145,10 +145,10 @@ limit_bandwidth (wgint bytes, struct ptimer *timer)
    1 is returned.  */
 
 static int
-write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
-            wgint *written, FILE *out2)
+write_data (FILE *out, FILE *out2, const char *buf, int bufsize,
+            wgint *skip, wgint *written)
 {
-  if (!out)
+  if (out == NULL && out2 == NULL)
     return 1;
   if (*skip > bufsize)
     {
@@ -164,11 +164,11 @@ write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
         return 1;
     }
 
-  fwrite (buf, 1, bufsize, out);
-  *written += bufsize;
-
+  if (out != NULL)
+    fwrite (buf, 1, bufsize, out);
   if (out2 != NULL)
     fwrite (buf, 1, bufsize, out2);
+  *written += bufsize;
 
   /* Immediately flush the downloaded data.  This should not hinder
      performance: fast downloads will arrive in large 16K chunks
@@ -184,9 +184,12 @@ write_data (FILE *out, const char *buf, int bufsize, wgint *skip,
      actual justification.  (Also, why 16K?  Anyone test other values?)
   */
 #ifndef __VMS
-  fflush (out);
+  if (out != NULL)
+    fflush (out);
+  if (out2 != NULL)
+    fflush (out2);
 #endif /* ndef __VMS */
-  if (ferror (out))
+  if (out != NULL && ferror (out))
     return -1;
   else if (out2 != NULL && ferror (out2))
     return -2;
@@ -358,7 +361,7 @@ fd_read_body (int fd, FILE *out, wgint toread, wgint startpos,
       if (ret > 0)
         {
           sum_read += ret;
-          int write_res = write_data (out, dlbuf, ret, &skip, &sum_written, out2);
+          int write_res = write_data (out, out2, dlbuf, ret, &skip, &sum_written);
           if (write_res != 0)
             {
               ret = (write_res == -3) ? -3 : -2;

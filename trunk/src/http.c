@@ -1484,6 +1484,135 @@ File %s already there; not retrieving.\n\n"), quote (filename));
     *dt |= TEXTHTML;
 }
 
+/* Download the response body from the socket and writes it to
+   an output file.  The headers have already been read from the
+   socket.  If WARC is enabled, the response body will also be
+   written to a WARC response record.
+
+   hs, contlen, contrange, chunked_transfer_encoding and url are
+   parameters from the gethttp method.  fp is a pointer to the
+   output file.
+
+   url, warc_timestamp_str, warc_request_uuid, warc_ip, type
+   and statcode will be saved in the headers of the WARC record.
+   The head parameter contains the HTTP headers of the response.
+ 
+   If fp is NULL and WARC is enabled, the response body will be
+   written only to the WARC file.  If WARC is disabled and fp
+   is a file pointer, the data will be written to the file.
+   If fp is a file pointer and WARC is enabled, the body will
+   be written to both destinations.
+   
+   Returns the error code.   */
+static int
+read_response_body (struct http_stat *hs, int sock, FILE *fp, wgint contlen,
+                    wgint contrange, bool chunked_transfer_encoding,
+                    char *url, char *warc_timestamp_str, char *warc_request_uuid,
+                    ip_address *warc_ip, char *type, int statcode, char *head)
+{
+  int warc_payload_offset = 0;
+  FILE *warc_tmp = NULL;
+  int warcerr = 0;
+
+  if (opt.warc_filename != NULL)
+    {
+      /* Open a temporary file where we can write the response before we
+         add it to the WARC record.  */
+      warc_tmp = warc_tempfile ();
+      if (warc_tmp == NULL)
+        warcerr = WARC_TMP_FOPENERR;
+
+      if (warcerr == 0)
+        {
+          /* We should keep the response headers for the WARC record.  */
+          int head_len = strlen (head);
+          int warc_tmp_written = fwrite (head, 1, head_len, warc_tmp);
+          if (warc_tmp_written != head_len)
+            warcerr = WARC_TMP_FWRITEERR;
+          warc_payload_offset = head_len;
+        }
+
+      if (warcerr != 0)
+        {
+          if (warc_tmp != NULL)
+            fclose (warc_tmp);
+          return warcerr;
+        }
+    }
+
+  if (fp != NULL)
+    {
+      /* This confuses the timestamping code that checks for file size.
+         #### The timestamping code should be smarter about file size.  */
+      if (opt.save_headers && hs->restval == 0)
+        fwrite (head, 1, strlen (head), fp);
+    }
+
+  /* Read the response body.  */
+  int flags = 0;
+  if (contlen != -1)
+    /* If content-length is present, read that much; otherwise, read
+       until EOF.  The HTTP spec doesn't require the server to
+       actually close the connection when it's done sending data. */
+    flags |= rb_read_exactly;
+  if (fp != NULL && hs->restval > 0 && contrange == 0)
+    /* If the server ignored our range request, instruct fd_read_body
+       to skip the first RESTVAL bytes of body.  */
+    flags |= rb_skip_startpos;
+  if (chunked_transfer_encoding)
+    flags |= rb_chunked_transfer_encoding;
+
+  hs->len = hs->restval;
+  hs->rd_size = 0;
+  /* Download the response body and write it to fp.
+     If we are working on a WARC file, we simultaneously write the
+     response body to warc_tmp.  */
+  hs->res = fd_read_body (sock, fp, contlen != -1 ? contlen : 0,
+                          hs->restval, &hs->rd_size, &hs->len, &hs->dltime,
+                          flags, warc_tmp);
+  if (hs->res >= 0)
+    {
+      if (warc_tmp != NULL)
+        {
+          /* Create a response record and write it to the WARC file.
+             Note: per the WARC standard, the request and response should share
+             the same date header.  We re-use the timestamp of the request.
+             The response record should also refer to the uuid of the request.  */
+          bool r = warc_write_response_record (url, warc_timestamp_str,
+                                               warc_request_uuid, warc_ip,
+                                               warc_tmp, warc_payload_offset,
+                                               type, statcode, hs->newloc);
+
+          /* warc_write_response_record has closed warc_tmp. */
+
+          if (! r)
+            return WARC_ERR;
+        }
+
+      return RETRFINISHED;
+    }
+  
+  if (warc_tmp != NULL)
+    fclose (warc_tmp);
+
+  if (hs->res == -2)
+    {
+      /* Error while writing to fd. */
+      return FWRITEERR;
+    }
+  else if (hs->res == -3)
+    {
+      /* Error while writing to warc_tmp. */
+      return WARC_TMP_FWRITEERR;
+    }
+  else
+    {
+      /* A read error! */
+      hs->rderrmsg = xstrdup (fd_errstr (sock));
+      return RETRFINISHED;
+    }
+}
+
 #define BEGINS_WITH(line, string_constant)                               \
   (!strncasecmp (line, string_constant, sizeof (string_constant) - 1)    \
    && (c_isspace (line[sizeof (string_constant) - 1])                      \
@@ -1543,7 +1672,6 @@ gethttp (struct url *u, struct http_stat *hs, int *dt, struct url *proxy,
   FILE *fp;
 
   int sock = -1;
-  int flags;
 
   /* Set to 1 when the authorization has already been sent and should
      not be tried again. */
@@ -2169,81 +2297,25 @@ read_header:
          But if we are writing a WARC file we are: we like to keep everyting.  */
       if (warc_enabled)
         {
-          /* Open a temporary file where we can write the response before we
-             add it to the WARC record.  */
-          int warcerr = 0;
-          warc_tmp = warc_tempfile ();
-          if (warc_tmp == NULL)
-            warcerr = WARC_TMP_FOPENERR;
+          type = resp_header_strdup (resp, "Content-Type");
+          int err = read_response_body (hs, sock, NULL, contlen, 0,
+                                        chunked_transfer_encoding,
+                                        u->url, warc_timestamp_str,
+                                        warc_request_uuid, warc_ip, type,
+                                        statcode, head);
+          xfree_null (type);
 
-          if (warcerr == 0)
-            {
-              /* We should keep the response headers for the WARC record.  */
-              int head_len = strlen (head);
-              int warc_tmp_written = fwrite (head, 1, head_len, warc_tmp);
-              if (warc_tmp_written != head_len)
-                warcerr = WARC_TMP_FWRITEERR;
-              warc_payload_offset = head_len;
-            }
-
-          if (warcerr != 0)
+          if (err != RETRFINISHED || hs->res < 0)
             {
               CLOSE_INVALIDATE (sock);
               request_free (req);
               xfree_null (message);
               resp_free (resp);
               xfree (head);
-              if (warc_tmp != NULL)
-                fclose (warc_tmp);
-              return warcerr;
-            }
-
-          /* Read the response body and add it to warc_tmp.  */
-          flags = 0;
-          if (contlen != -1)
-            flags |= rb_read_exactly;
-          if (chunked_transfer_encoding)
-            flags |= rb_chunked_transfer_encoding;
-          int res = fd_read_body (sock, warc_tmp, contlen != -1 ? contlen : 0,
-                                  0, NULL, NULL, NULL, flags, NULL);
-          if (res >= 0)
-            {
-              /* Create a response record and write it to the WARC file.
-                 Note: per the WARC standard, the request and response should share
-                 the same date header.  We re-use the timestamp of the request.
-                 The response record should also refer to the uuid of the request.  */
-              type = resp_header_strdup (resp, "Content-Type");
-              bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset, type, statcode, hs->newloc);
-              xfree_null (type);
-
-              if (! warc_result)
-                {
-                  CLOSE_INVALIDATE (sock);
-                  request_free (req);
-                  xfree_null (message);
-                  resp_free (resp);
-                  xfree (head);
-                  return WARC_ERR;
-                }
-              else
-                CLOSE_FINISH (sock);
-
-              /* warc_write_response_record has closed warc_tmp. */
-            }
-          else if (res == -2)
-            {
-              /* Error while writing to warc_tmp. */
-              if (warc_tmp != NULL)
-                fclose (warc_tmp);
-              CLOSE_INVALIDATE (sock);
-              request_free (req);
-              xfree_null (message);
-              resp_free (resp);
-              xfree (head);
-              return WARC_TMP_FWRITEERR;
+              return err;
             }
           else
-            CLOSE_INVALIDATE (sock);
+            CLOSE_FINISH (sock);
         }
       else
         {
@@ -2502,77 +2574,31 @@ read_header:
                      _("Location: %s%s\n"),
                      hs->newloc ? escnonprint_uri (hs->newloc) : _("unspecified"),
                      hs->newloc ? _(" [following]") : "");
+ 
+          /* In case the caller cares to look...  */
+          hs->len = 0;
+          hs->res = 0;
+          hs->restval = 0;
 
           /* Normally we are not interested in the response body of a redirect.
              But if we are writing a WARC file we are: we like to keep everyting.  */
           if (warc_enabled)
             {
-              /* Open a temporary file where we can write the response before we
-                 add it to the WARC record.  */
-              int warcerr = 0;
-              warc_tmp = warc_tempfile ();
-              if (warc_tmp == NULL)
-                warcerr = WARC_TMP_FOPENERR;
+              int err = read_response_body (hs, sock, NULL, contlen, 0,
+                                            chunked_transfer_encoding,
+                                            u->url, warc_timestamp_str,
+                                            warc_request_uuid, warc_ip, type,
+                                            statcode, head);
 
-              if (warcerr == 0)
-                {
-                  /* We should keep the response headers for the WARC record.  */
-                  int head_len = strlen (head);
-                  int warc_tmp_written = fwrite (head, 1, head_len, warc_tmp);
-                  if (warc_tmp_written != head_len)
-                    warcerr = WARC_TMP_FWRITEERR;
-                  warc_payload_offset = head_len;
-                }
-
-              if (warcerr != 0)
+              if (err != RETRFINISHED || hs->res < 0)
                 {
                   CLOSE_INVALIDATE (sock);
                   xfree_null (type);
                   xfree (head);
-                  if (warc_tmp != NULL)
-                    fclose (warc_tmp);
-                  return warcerr;
-                }
-
-              /* Read the response body and add it to warc_tmp.  */
-              flags = 0;
-              if (contlen != -1)
-                flags |= rb_read_exactly;
-              if (chunked_transfer_encoding)
-                flags |= rb_chunked_transfer_encoding;
-              int res = fd_read_body (sock, warc_tmp, contlen != -1 ? contlen : 0,
-                                      0, NULL, NULL, NULL, flags, NULL);
-              if (res >= 0)
-                {
-                  /* Create a response record and write it to the WARC file.
-                     Note: per the WARC standard, the request and response should share
-                     the same date header.  We re-use the timestamp of the request.
-                     The response record should also refer to the uuid of the request.  */
-                  bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset, type, statcode, hs->newloc);
-                  if (! warc_result)
-                    {
-                      CLOSE_INVALIDATE (sock);
-                      xfree_null (type);
-                      xfree (head);
-                      return WARC_ERR;
-                    }
-                  else
-                    CLOSE_FINISH (sock);
-
-                  /* warc_write_response_record has closed warc_tmp. */
-                }
-              else if (res == -2)
-                {
-                  /* Error while writing to warc_tmp. */
-                  if (warc_tmp != NULL)
-                    fclose (warc_tmp);
-                  CLOSE_INVALIDATE (sock);
-                  xfree_null (type);
-                  xfree (head);
-                  return WARC_TMP_FWRITEERR;
+                  return err;
                 }
               else
-                CLOSE_INVALIDATE (sock);
+                CLOSE_FINISH (sock);
             }
           else
             {
@@ -2708,77 +2734,27 @@ read_header:
       /* In case the caller cares to look...  */
       hs->len = 0;
       hs->res = 0;
+      hs->restval = 0;
 
       /* Normally we are not interested in the response body of a error responses.
          But if we are writing a WARC file we are: we like to keep everyting.  */
       if (warc_enabled)
         {
-          /* Open a temporary file where we can write the response before we
-             add it to the WARC record.  */
-          int warcerr = 0;
-          warc_tmp = warc_tempfile ();
-          if (warc_tmp == NULL)
-            warcerr = WARC_TMP_FOPENERR;
+          int err = read_response_body (hs, sock, NULL, contlen, 0,
+                                        chunked_transfer_encoding,
+                                        u->url, warc_timestamp_str,
+                                        warc_request_uuid, warc_ip, type,
+                                        statcode, head);
 
-          if (warcerr == 0)
-            {
-              /* We should keep the response headers for the WARC record.  */
-              int head_len = strlen (head);
-              int warc_tmp_written = fwrite (head, 1, head_len, warc_tmp);
-              if (warc_tmp_written != head_len)
-                warcerr = WARC_TMP_FWRITEERR;
-              warc_payload_offset = head_len;
-            }
-
-          if (warcerr != 0)
+          if (err != RETRFINISHED || hs->res < 0)
             {
               CLOSE_INVALIDATE (sock);
               xfree (head);
               xfree_null (type);
-              if (warc_tmp != NULL)
-                fclose (warc_tmp);
-              return warcerr;
-            }
-
-          /* Read the response body and add it to warc_tmp.  */
-          flags = 0;
-          if (contlen != -1)
-            flags |= rb_read_exactly;
-          if (chunked_transfer_encoding)
-            flags |= rb_chunked_transfer_encoding;
-          int res = fd_read_body (sock, warc_tmp, contlen != -1 ? contlen : 0,
-                                  0, NULL, NULL, NULL, flags, NULL);
-          if (res >= 0)
-            {
-              /* Create a response record and write it to the WARC file.
-                 Note: per the WARC standard, the request and response should share
-                 the same date header.  We re-use the timestamp of the request.
-                 The response record should also refer to the uuid of the request.  */
-              bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset, type, statcode, NULL);
-              if (! warc_result)
-                {
-                  CLOSE_INVALIDATE (sock);
-                  xfree (head);
-                  xfree_null (type);
-                  return WARC_ERR;
-                }
-              else
-                CLOSE_FINISH (sock);
-
-              /* warc_write_response_record has closed warc_tmp. */
-            }
-          else if (res == -2)
-            {
-              /* Error while writing to warc_tmp. */
-              if (warc_tmp != NULL)
-                fclose (warc_tmp);
-              CLOSE_INVALIDATE (sock);
-              xfree (head);
-              xfree_null (type);
-              return WARC_TMP_FWRITEERR;
+              return err;
             }
           else
-            CLOSE_INVALIDATE (sock);
+            CLOSE_FINISH (sock);
         }
       else
         {
@@ -2892,114 +2868,25 @@ read_header:
                  HYPHENP (hs->local_file) ? quote ("STDOUT") : quote (hs->local_file));
     }
 
-
-  if (warc_enabled)
-    {
-      /* Open a temporary file where we can write the response before we
-         add it to the WARC record.  */
-      int warcerr = 0;
-      warc_tmp = warc_tempfile ();
-      if (warc_tmp == NULL)
-        warcerr = WARC_TMP_FOPENERR;
-
-      if (warcerr == 0)
-        {
-          /* We should keep the response headers for the WARC record.  */
-          int head_len = strlen (head);
-          int warc_tmp_written = fwrite (head, 1, head_len, warc_tmp);
-          if (warc_tmp_written != head_len)
-            warcerr = WARC_TMP_FWRITEERR;
-          warc_payload_offset = head_len;
-        }
-
-      if (warcerr != 0)
-        {
-          CLOSE_INVALIDATE (sock);
-          xfree (head);
-          xfree_null (type);
-          if (warc_tmp != NULL)
-            fclose (warc_tmp);
-          if (!output_stream)
-            fclose (fp);
-          return warcerr;
-        }
-    }
-
-
-  /* This confuses the timestamping code that checks for file size.
-     #### The timestamping code should be smarter about file size.  */
-  if (opt.save_headers && hs->restval == 0)
-    fwrite (head, 1, strlen (head), fp);
+  int err = read_response_body (hs, sock, fp, contlen, contrange,
+                                chunked_transfer_encoding,
+                                u->url, warc_timestamp_str,
+                                warc_request_uuid, warc_ip, type,
+                                statcode, head);
 
   /* Now we no longer need to store the response header. */
   xfree (head);
-
-  /* Download the request body.  */
-  flags = 0;
-  if (contlen != -1)
-    /* If content-length is present, read that much; otherwise, read
-       until EOF.  The HTTP spec doesn't require the server to
-       actually close the connection when it's done sending data. */
-    flags |= rb_read_exactly;
-  if (hs->restval > 0 && contrange == 0)
-    /* If the server ignored our range request, instruct fd_read_body
-       to skip the first RESTVAL bytes of body.  */
-    flags |= rb_skip_startpos;
-
-  if (chunked_transfer_encoding)
-    flags |= rb_chunked_transfer_encoding;
-
-  hs->len = hs->restval;
-  hs->rd_size = 0;
-  /* Download the response body and write it to fp.
-     If we are working on a WARC file, we simultaneously write the
-     response body to warc_tmp.  */
-  hs->res = fd_read_body (sock, fp, contlen != -1 ? contlen : 0,
-                          hs->restval, &hs->rd_size, &hs->len, &hs->dltime,
-                          flags, warc_tmp);
+  xfree_null (type);
 
   if (hs->res >= 0)
     CLOSE_FINISH (sock);
   else
-    {
-      if (hs->res < 0)
-        hs->rderrmsg = xstrdup (fd_errstr (sock));
-      CLOSE_INVALIDATE (sock);
-    }
-
-  if (warc_enabled)
-    {
-      if (hs->res >= 0)
-        {
-          /* Create a response record and write it to the WARC file.
-             Note: per the WARC standard, the request and response should share
-             the same date header.  We re-use the timestamp of the request.
-             The response record should also refer to the uuid of the request.  */
-          bool warc_result = warc_write_response_record (u->url, warc_timestamp_str, warc_request_uuid, warc_ip, warc_tmp, warc_payload_offset, type, statcode, NULL);
-          if (! warc_result)
-            {
-              xfree_null (type);
-              return WARC_ERR;
-            }
-
-          /* warc_write_response_record has closed warc_tmp. */
-        }
-      else
-        {
-          if (warc_tmp != NULL)
-            fclose (warc_tmp);
-        }
-    }
-
-  xfree_null (type);
+    CLOSE_INVALIDATE (sock);
 
   if (!output_stream)
     fclose (fp);
-  if (hs->res == -2)
-    return FWRITEERR;
-  if (hs->res == -3)
-    return WARC_TMP_FWRITEERR;
-  return RETRFINISHED;
+
+  return err;
 }
 
 /* The genuine HTTP loop!  This is the part where the retrieval is
