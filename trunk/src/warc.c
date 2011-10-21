@@ -125,6 +125,10 @@ warc_write_start_record ()
   if (!warc_write_ok)
     return false;
 
+  fflush (warc_current_file);
+  if (opt.warc_maxsize > 0 && ftell (warc_current_file) >= opt.warc_maxsize)
+    warc_start_new_file (false);
+
   /* Start a GZIP stream, if required. */
   if (opt.warc_compression_enabled)
     {
@@ -251,10 +255,6 @@ warc_write_end_record ()
       fflush (warc_current_file);
       fseek (warc_current_file, current_offset, SEEK_SET);
     }
-  fflush (warc_current_file);
-
-  if (opt.warc_maxsize > 0 && ftell (warc_current_file) >= opt.warc_maxsize)
-    warc_start_new_file (false);
 
   return warc_write_ok;
 }
