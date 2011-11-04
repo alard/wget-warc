@@ -37,7 +37,7 @@ endif
 
 # The following line is losing on some versions of make!
 DEFS     = @DEFS@ -DSYSTEM_WGETRC=\"$(sysconfdir)/wgetrc\" -DLOCALEDIR=\"$(localedir)\"
-LIBS     = @LIBICONV@ @LIBINTL@ @LIBUUID@ @LIBS@ $(LIB_CLOCK_GETTIME)
+LIBS     = @LIBICONV@ @LIBINTL@ @LIBS@ $(LIB_CLOCK_GETTIME)
 
 EXTRA_DIST = css.l css.c css_.c build_info.c.in
 

@@ -511,20 +511,17 @@ if test "X$iri" != "Xno"; then
   fi
 fi
 
-# Warc
-AC_CHECK_HEADER(uuid/uuid.h, UUID_FOUND="yes", UUID_FOUND="no")
-if test x$UUID_FOUND = xno; then
-  AC_MSG_ERROR([libuuid is required])
-fi
+dnl
+dnl Check for UUID
+dnl
 
-AC_CHECK_LIB(uuid, uuid_generate, UUID_FOUND="yes", UUID_FOUND="no")
-if test x$UUID_FOUND = xno; then
-  AC_MSG_ERROR([libuuid is required])
-fi
-LIBUUID="-luuid"
-AC_SUBST(LIBUUID)
-LDFLAGS="${LDFLAGS} -L$libuuid/lib"
-CPPFLAGS="${CPPFLAGS} -I$libuuid/include"
+AC_CHECK_HEADER(uuid/uuid.h,
+                AC_CHECK_LIB(uuid, uuid_generate,
+                  [LIBS="${LIBS} -luuid"
+                   AC_DEFINE([HAVE_LIBUUID], 1,
+                             [Define if libuuid is available.])
+                  ])
+)
 
  
 dnl Needed by src/Makefile.am
