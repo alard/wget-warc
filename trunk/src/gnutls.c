@@ -59,10 +59,15 @@ as that of the covered work.  */
    confused with actual gnutls functions -- such as the gnutls_read
    preprocessor macro.  */
 
+static bool ssl_initialized = false;
+
 static gnutls_certificate_credentials credentials;
 bool
 ssl_init ()
 {
+  if (ssl_initialized)
+    return true;
+
   const char *ca_directory;
   DIR *dir;
 
@@ -104,6 +109,8 @@ ssl_init ()
   if (opt.ca_cert)
     gnutls_certificate_set_x509_trust_file (credentials, opt.ca_cert,
                                             GNUTLS_X509_FMT_PEM);
+
+  ssl_initialized = true;
   return true;
 }
 
