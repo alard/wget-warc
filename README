@@ -1,0 +1,6 @@
+Download the most recent Wget source code to get WARC support:
+ https://www.gnu.org/software/wget/
+
+There is no longer a need for this repository, because version 1.14 has
+WARC support (and other new features) built-in.
+
