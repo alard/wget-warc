@@ -1,9 +1,0 @@
-doc/wget.texi
-po/bg.po
-ChangeLog
-doc/ChangeLog
-src/ChangeLog
-windows/ChangeLog
-msdos/ChangeLog
-tests/ChangeLog
-build-aux/texinfo.tex
